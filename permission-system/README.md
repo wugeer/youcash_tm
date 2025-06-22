@@ -17,7 +17,7 @@
 
 ### 后端
 
-- **语言**：Python 3.12
+- **语言**：Python 3.11
 - **Web框架**：FastAPI
 - **ORM**：SQLAlchemy
 - **数据库**：PostgreSQL

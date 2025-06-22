@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取表权限列表
 export function getTablePermissions(params) {
   return request({
-    url: '/table-permissions',
+    url: '/table-permissions/',
     method: 'get',
     params,
   });
@@ -20,7 +20,7 @@ export function getTablePermission(id) {
 // 创建表权限
 export function createTablePermission(data) {
   return request({
-    url: '/table-permissions',
+    url: '/table-permissions/',
     method: 'post',
     data,
   });

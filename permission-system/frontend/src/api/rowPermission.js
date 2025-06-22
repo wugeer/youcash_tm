@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取行权限列表
 export function getRowPermissions(params) {
   return request({
-    url: '/row-permissions',
+    url: '/row-permissions/',
     method: 'get',
     params,
   });
@@ -20,7 +20,7 @@ export function getRowPermission(id) {
 // 创建行权限
 export function createRowPermission(data) {
   return request({
-    url: '/row-permissions',
+    url: '/row-permissions/',
     method: 'post',
     data,
   });

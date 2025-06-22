@@ -33,11 +33,12 @@ const RowPermissionForm = ({ visible, onCancel, onSuccess, initialValues }) => {
       onSuccess();
     } catch (error) {
       console.error('表单提交失败:', error);
+      // 当表单验证失败时，Antd会自动在UI上显示错误信息，我们不需要做任何事。
+      // 当API调用失败时，错误信息会由request.js中的全局拦截器来显示。
+      // 因此，这里的catch块只需要记录错误即可，无需弹出message。
       if (error.errorFields) {
-        // 表单验证错误
-        return;
+        return; // 是表单验证错误，直接返回
       }
-      message.error(isEditing ? '更新行权限失败' : '创建行权限失败');
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,17 @@ const RowPermissionForm = ({ visible, onCancel, onSuccess, initialValues }) => {
         <Form.Item
           name="user_name"
           label="用户名"
-          rules={[{ required: true, message: '请输入用户名' }]}
+          dependencies={['role_name']}
+          rules={[
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value && !getFieldValue('role_name')) {
+                  return Promise.reject(new Error('用户名和角色名至少需要填写一个'));
+                }
+                return Promise.resolve();
+              },
+            }),
+          ]}
         >
           <Input placeholder="请输入用户名" />
         </Form.Item>
@@ -100,7 +111,17 @@ const RowPermissionForm = ({ visible, onCancel, onSuccess, initialValues }) => {
         <Form.Item
           name="role_name"
           label="角色名"
-          rules={[{ required: true, message: '请输入角色名' }]}
+          dependencies={['user_name']}
+          rules={[
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value && !getFieldValue('user_name')) {
+                  return Promise.reject(new Error('用户名和角色名至少需要填写一个'));
+                }
+                return Promise.resolve();
+              },
+            }),
+          ]}
         >
           <Input placeholder="请输入角色名" />
         </Form.Item>

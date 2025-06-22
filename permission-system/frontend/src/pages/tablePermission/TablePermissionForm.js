@@ -15,6 +15,21 @@ const TablePermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =>
     }
   }, [visible, initialValues, form]);
 
+  // 自定义校验：用户名和角色名至少填一个
+  const validateUserOrRole = (_, value) => {
+    if (value || form.getFieldValue('role_name')) {
+      return Promise.resolve();
+    }
+    return Promise.reject(new Error('用户名和角色名至少填一个'));
+  };
+
+  const validateRoleOrUser = (_, value) => {
+    if (value || form.getFieldValue('user_name')) {
+      return Promise.resolve();
+    }
+    return Promise.reject(new Error('用户名和角色名至少填一个'));
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -32,10 +47,23 @@ const TablePermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =>
     } catch (error) {
       console.error('表单提交失败:', error);
       if (error.errorFields) {
-        // 表单验证错误
+        // Ant Design form validation error
         return;
       }
-      message.error(isEditing ? '更新表权限失败' : '创建表权限失败');
+      let errorMessage = isEditing ? '更新表权限失败' : '创建表权限失败';
+      if (error.response && error.response.data && error.response.data.detail) {
+        const detail = error.response.data.detail;
+        if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (Array.isArray(detail) && detail.length > 0 && typeof detail[0] === 'object' && detail[0] !== null && detail[0].msg) {
+          // Pydantic validation errors often come as an array of objects like [{loc: [field], msg: '', type: ''}]
+          errorMessage = detail.map(err => `${err.loc.join('.')} - ${err.msg}`).join('; ');
+        } else if (typeof detail === 'object' && detail !== null && detail.msg) {
+          // Sometimes it might be a single error object
+          errorMessage = detail.msg;
+        }
+      }
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -79,7 +107,7 @@ const TablePermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =>
         <Form.Item
           name="user_name"
           label="用户名"
-          rules={[{ required: true, message: '请输入用户名' }]}
+          rules={[{ validator: validateUserOrRole }]} 
         >
           <Input placeholder="请输入用户名" />
         </Form.Item>
@@ -87,7 +115,7 @@ const TablePermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =>
         <Form.Item
           name="role_name"
           label="角色名"
-          rules={[{ required: true, message: '请输入角色名' }]}
+          rules={[{ validator: validateRoleOrUser }]} 
         >
           <Input placeholder="请输入角色名" />
         </Form.Item>

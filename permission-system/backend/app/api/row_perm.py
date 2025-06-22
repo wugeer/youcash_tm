@@ -43,27 +43,36 @@ def create_row_permission(
 @router.get("/", response_model=PaginatedResponse)
 def get_row_permissions(
     db: Session = Depends(get_db),
-    db_name: Optional[str] = None,
-    table_name: Optional[str] = None,
-    user_name: Optional[str] = None,
-    role_name: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    params: RowPermissionFilter = Depends(),
     current_user: User = Depends(get_current_active_user)
 ):
-    """获取行权限列表，支持过滤和分页"""
+    """获取行权限列表，支持过滤、分页和排序"""
     filters = {
-        "db_name": db_name,
-        "table_name": table_name,
-        "user_name": user_name,
-        "role_name": role_name
+        "db_name": params.db_name,
+        "table_name": params.table_name,
+        "user_name": params.user_name,
+        "role_name": params.role_name
     }
     
     # 移除None值
     filters = {k: v for k, v in filters.items() if v is not None}
     
+    # 处理排序参数 - 优先使用单独的排序字段和排序方向参数
+    sorters_list = None
+    if params.sort_field and params.sort_order:
+        print(f"DEBUG: 使用单独的排序参数: {params.sort_field}, {params.sort_order}")
+        sorters_list = [{'field': params.sort_field, 'order': params.sort_order}]
+    elif params.sorters:
+        print(f"DEBUG: 使用sorters参数: {params.sorters}")
+        sorters_list = [s.model_dump() for s in params.sorters]
+    
     result = get_paginated_results(
-        db, RowPermission, page=page, page_size=page_size, filters=filters
+        db, 
+        RowPermission, 
+        page=params.page, 
+        page_size=params.page_size, 
+        filters=filters,
+        sorters=sorters_list
     )
     
     # 转换为JSON响应格式

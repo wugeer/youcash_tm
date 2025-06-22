@@ -33,9 +33,10 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // 用户登录
-  const login = async (username, password) => {
+  const login = async (credentials) => {
+    console.log('Sending credentials to backend:', credentials);
     try {
-      const response = await apiLogin({ username, password });
+      const response = await apiLogin(credentials);
       const { access_token } = response;
       localStorage.setItem('token', access_token);
       
@@ -44,6 +45,13 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(userInfo);
       setIsAuthenticated(true);
       message.success('登录成功');
+      
+      // 强制刷新页面，确保应用状态完全重新初始化
+      // 为路径添加末尾斜杠，避免重定向问题
+      setTimeout(() => {
+        window.location.href = '/table-permissions/';
+      }, 300); // 等待一小段时间以确保消息提示显示
+      
       return true;
     } catch (error) {
       return false;

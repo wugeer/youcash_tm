@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 确保使用Python 3.13
-echo "=== 使用Python 3.13运行集成测试 ==="
+# 确保使用Python 3.11
+echo "=== 使用Python 3.11运行集成测试 ==="
 echo "Python版本："
 ./venv/bin/python3 --version
 

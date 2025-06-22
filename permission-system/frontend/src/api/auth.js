@@ -2,10 +2,20 @@ import request from '../utils/request';
 
 // 用户登录
 export function login(data) {
+  console.log('auth.js login - 原始数据:', JSON.stringify(data));
+  console.log('auth.js login - 密码长度:', data.password ? data.password.length : 0);
+  
+  // 创建新对象传递，避免引用修改
+  const loginData = {
+    username: data.username,
+    password: data.password
+  };
+  
+  console.log('auth.js login - 即将发送的数据:', JSON.stringify(loginData));
   return request({
     url: '/auth/login/json',
     method: 'post',
-    data,
+    data: loginData,
   });
 }
 

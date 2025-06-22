@@ -24,7 +24,7 @@ class TestAuthFlow:
         # 使用管理员API清理可能存在的测试用户（实际应用中需替换为真实的管理员凭据）
         admin_credentials = {"username": "admin", "password": "admin_password"}
         try:
-            admin_token_resp = requests.post(f"{BASE_URL}/auth/login/json", json=admin_credentials)
+            admin_token_resp = requests.post(f"{BASE_URL}/api/v1/auth/login/json", json=admin_credentials)
             if admin_token_resp.status_code == 200:
                 admin_token = admin_token_resp.json().get("access_token")
                 # 查找并删除测试用户
@@ -47,14 +47,14 @@ class TestAuthFlow:
     def test_full_auth_flow(self):
         """测试完整的认证流程：注册、登录、获取用户信息、退出"""
         # 步骤1：用户注册
-        register_resp = requests.post(f"{BASE_URL}/auth/register", json=TEST_USER)
+        register_resp = requests.post(f"{BASE_URL}/api/v1/auth/register", json=TEST_USER)
         assert register_resp.status_code == 200, "用户注册失败"
         user_data = register_resp.json()
         assert user_data["username"] == TEST_USER["username"]
         assert "id" in user_data
         
         # 步骤2：用户登录
-        login_resp = requests.post(f"{BASE_URL}/auth/login/json", json=TEST_USER)
+        login_resp = requests.post(f"{BASE_URL}/api/v1/auth/login/json", json=TEST_USER)
         assert login_resp.status_code == 200, "用户登录失败"
         auth_data = login_resp.json()
         assert "access_token" in auth_data

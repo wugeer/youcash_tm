@@ -96,10 +96,32 @@ def login_for_access_token(
 
 @router.post("/login/json", response_model=Token)
 def login_json(db: Session = Depends(get_db), user_login: UserLogin = Body(...)):
+    # 记录更详细的密码信息（仅供调试用）
+    print(f"Received login request for user: {user_login.username}, password: {user_login.password}")
+    print(f"Password length: {len(user_login.password) if user_login.password else 0}")
+    print(f"Password content check: {'1qaz@WSX' == user_login.password}")
+    
     """通过JSON方式登录（便于前端使用）"""
     # 查找用户
     user = db.query(User).filter(User.username == user_login.username).first()
-    if not user or not verify_password(user_login.password, user.password_hash):
+    
+    # 检查用户是否存在
+    if not user:
+        print(f"User not found: {user_login.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
+    
+    # 检查密码是否正确
+    valid_password = verify_password(user_login.password, user.password_hash)
+    print(f"Password verification result: {valid_password}")
+    
+    # 可选的调试检查：如果用户是admin并且密码是1qaz@WSX
+    if user_login.username == "admin" and user_login.password == "1qaz@WSX":
+        print("Special case: admin with correct hardcoded password detected")
+    
+    if not valid_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误"

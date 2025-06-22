@@ -13,6 +13,7 @@ const ColumnPermissionList = () => {
   const [current, setCurrent] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({});
+  const [sorters, setSorters] = useState([]);
   const [formVisible, setFormVisible] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
@@ -21,11 +22,22 @@ const ColumnPermissionList = () => {
   const fetchColumnPermissions = async () => {
     try {
       setLoading(true);
+      console.log('当前排序状态:', sorters);
+      
       const params = {
         ...filters,
         page: current,
-        page_size: pageSize
+        page_size: pageSize,
       };
+      
+      if (sorters && sorters.length > 0) {
+        console.log('添加排序参数到请求中');
+        // 使用单独的参数传递排序字段和排序方向，避免复杂的JSON序列化
+        const firstSorter = sorters[0]; // 暂时只处理第一个排序
+        params.sort_field = firstSorter.field;
+        params.sort_order = firstSorter.order;
+        console.log('完整请求参数:', params);
+      }
       const data = await getColumnPermissions(params);
       setPermissions(data.items);
       setTotal(data.total);
@@ -39,7 +51,7 @@ const ColumnPermissionList = () => {
 
   useEffect(() => {
     fetchColumnPermissions();
-  }, [current, pageSize, filters]);
+  }, [current, pageSize, filters, sorters]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -84,10 +96,26 @@ const ColumnPermissionList = () => {
     }
   };
 
-  // 表格翻页处理
-  const handleTableChange = (pagination) => {
+  // 表格翻页和排序处理
+  const handleTableChange = (pagination, filters, sorter) => {
     setCurrent(pagination.current);
     setPageSize(pagination.pageSize);
+
+    console.log('原始排序参数:', sorter);
+    
+    const newSorters = Array.isArray(sorter) ? sorter : (sorter.field ? [sorter] : []);
+    console.log('处理后的排序数组:', newSorters);
+    
+    const formattedSorters = newSorters
+      .filter(s => s.order)
+      .map(s => ({
+        field: s.field,
+        order: s.order,
+      }));
+    
+    console.log('格式化后的排序参数:', formattedSorters);
+    
+    setSorters(formattedSorters);
   };
 
   // 表单提交成功后的处理
@@ -102,31 +130,37 @@ const ColumnPermissionList = () => {
       title: '数据库名',
       dataIndex: 'db_name',
       key: 'db_name',
+      sorter: true,
     },
     {
       title: '表名',
       dataIndex: 'table_name',
       key: 'table_name',
+      sorter: true,
     },
     {
       title: '字段名',
       dataIndex: 'col_name',
       key: 'col_name',
+      sorter: true,
     },
     {
       title: '脱敏类型',
       dataIndex: 'mask_type',
       key: 'mask_type',
+      sorter: true,
     },
     {
       title: '用户名',
       dataIndex: 'user_name',
       key: 'user_name',
+      sorter: true,
     },
     {
       title: '角色名',
       dataIndex: 'role_name',
       key: 'role_name',
+      sorter: true,
     },
     {
       title: '创建时间',

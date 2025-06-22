@@ -11,6 +11,7 @@ const RowPermissionList = () => {
   const [current, setCurrent] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({});
+  const [sorters, setSorters] = useState([]);
   const [formVisible, setFormVisible] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
@@ -24,6 +25,16 @@ const RowPermissionList = () => {
         page: current,
         page_size: pageSize
       };
+      
+      // 添加排序参数 - 只处理单个排序字段
+      if (sorters && sorters.length > 0) {
+        console.log('添加排序参数到请求中');
+        const sorter = sorters[0]; // 只有一个排序字段
+        params.sort_field = sorter.field;
+        params.sort_order = sorter.order;
+        console.log('完整请求参数:', params);
+      }
+      
       const data = await getRowPermissions(params);
       setPermissions(data.items);
       setTotal(data.total);
@@ -37,7 +48,7 @@ const RowPermissionList = () => {
 
   useEffect(() => {
     fetchRowPermissions();
-  }, [current, pageSize, filters]);
+  }, [current, pageSize, filters, sorters]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -82,10 +93,21 @@ const RowPermissionList = () => {
     }
   };
 
-  // 表格翻页处理
-  const handleTableChange = (pagination) => {
+  // 表格翻页和排序处理
+  const handleTableChange = (pagination, filters, sorter) => {
     setCurrent(pagination.current);
     setPageSize(pagination.pageSize);
+    
+    // 处理排序 - 只保留单个排序字段
+    if (sorter && sorter.field && sorter.order) {
+      // 直接设置单个排序对象
+      setSorters([{ field: sorter.field, order: sorter.order }]);
+      console.log('排序参数:', { field: sorter.field, order: sorter.order });
+    } else {
+      // 如果没有排序，清空排序状态
+      setSorters([]);
+      console.log('清空排序参数');
+    }
   };
 
   // 表单提交成功后的处理
@@ -100,33 +122,39 @@ const RowPermissionList = () => {
       title: '数据库名',
       dataIndex: 'db_name',
       key: 'db_name',
+      sorter: true,
     },
     {
       title: '表名',
       dataIndex: 'table_name',
       key: 'table_name',
+      sorter: true,
     },
     {
       title: '行过滤条件',
       dataIndex: 'row_filter',
       key: 'row_filter',
       ellipsis: true,
+      sorter: true,
     },
     {
       title: '用户名',
       dataIndex: 'user_name',
       key: 'user_name',
+      sorter: true,
     },
     {
       title: '角色名',
       dataIndex: 'role_name',
       key: 'role_name',
+      sorter: true,
     },
     {
       title: '创建时间',
       dataIndex: 'create_time',
       key: 'create_time',
       render: (text) => new Date(text).toLocaleString(),
+      sorter: true,
     },
     {
       title: '操作',

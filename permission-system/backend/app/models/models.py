@@ -54,8 +54,8 @@ class TablePermission(Base):
     id = Column(Integer, primary_key=True, index=True)
     db_name = Column(String(100), nullable=False, index=True)
     table_name = Column(String(100), nullable=False, index=True)
-    user_name = Column(String(50), nullable=False, index=True)
-    role_name = Column(String(50), nullable=False, index=True)
+    user_name = Column(String(50), nullable=True, index=True)  # Changed here
+    role_name = Column(String(50), nullable=True, index=True)  # Changed here
     create_time = Column(DateTime(timezone=True), server_default=func.now())
     
     # 确保db_name, table_name, user_name, role_name的组合是唯一的
@@ -72,8 +72,8 @@ class ColumnPermission(Base):
     table_name = Column(String(100), nullable=False, index=True)
     col_name = Column(String(100), nullable=False, index=True)
     mask_type = Column(String(50), nullable=False)
-    user_name = Column(String(50), nullable=False, index=True)
-    role_name = Column(String(50), nullable=False, index=True)
+    user_name = Column(String(50), nullable=True, index=True)
+    role_name = Column(String(50), nullable=True, index=True)
     create_time = Column(DateTime(timezone=True), server_default=func.now())
     
     # 确保mask_type的值在规定范围内
@@ -94,8 +94,8 @@ class RowPermission(Base):
     db_name = Column(String(100), nullable=False, index=True)
     table_name = Column(String(100), nullable=False, index=True)
     row_filter = Column(Text, nullable=False)
-    user_name = Column(String(50), nullable=False, index=True)
-    role_name = Column(String(50), nullable=False, index=True)
+    user_name = Column(String(50), nullable=True, index=True)
+    role_name = Column(String(50), nullable=True, index=True)
     create_time = Column(DateTime(timezone=True), server_default=func.now())
     
     # 确保db_name, table_name, user_name, role_name的组合是唯一的

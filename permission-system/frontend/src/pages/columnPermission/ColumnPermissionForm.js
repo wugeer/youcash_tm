@@ -113,7 +113,17 @@ const ColumnPermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =
         <Form.Item
           name="user_name"
           label="用户名"
-          rules={[{ required: true, message: '请输入用户名' }]}
+          dependencies={['role_name']}
+          rules={[
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value && !getFieldValue('role_name')) {
+                  return Promise.reject(new Error('用户名和角色名至少需要填写一个'));
+                }
+                return Promise.resolve();
+              },
+            }),
+          ]}
         >
           <Input placeholder="请输入用户名" />
         </Form.Item>
@@ -121,7 +131,17 @@ const ColumnPermissionForm = ({ visible, onCancel, onSuccess, initialValues }) =
         <Form.Item
           name="role_name"
           label="角色名"
-          rules={[{ required: true, message: '请输入角色名' }]}
+          dependencies={['user_name']}
+          rules={[
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value && !getFieldValue('user_name')) {
+                  return Promise.reject(new Error('用户名和角色名至少需要填写一个'));
+                }
+                return Promise.resolve();
+              },
+            }),
+          ]}
         >
           <Input placeholder="请输入角色名" />
         </Form.Item>

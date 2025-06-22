@@ -44,31 +44,40 @@ def create_column_permission(
 @router.get("/", response_model=PaginatedResponse)
 def get_column_permissions(
     db: Session = Depends(get_db),
-    db_name: Optional[str] = None,
-    table_name: Optional[str] = None,
-    col_name: Optional[str] = None,
-    mask_type: Optional[str] = None,
-    user_name: Optional[str] = None,
-    role_name: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user)
+    params: ColumnPermissionFilter = Depends(),
+    current_user: User = Depends(get_current_active_user),
 ):
-    """获取列权限列表，支持过滤和分页"""
+    # 添加调试日志
+    print("DEBUG: 接收到的排序参数:", params.sorters)
+    """获取列权限列表，支持过滤、分页和排序"""
     filters = {
-        "db_name": db_name,
-        "table_name": table_name,
-        "col_name": col_name,
-        "mask_type": mask_type,
-        "user_name": user_name,
-        "role_name": role_name
+        "db_name": params.db_name,
+        "table_name": params.table_name,
+        "col_name": params.col_name,
+        "mask_type": params.mask_type,
+        "user_name": params.user_name,
+        "role_name": params.role_name
     }
     
     # 移除None值
     filters = {k: v for k, v in filters.items() if v is not None}
     
+    # 处理排序参数 - 优先使用单独的排序字段和排序方向参数
+    sorters_list = None
+    if params.sort_field and params.sort_order:
+        print(f"DEBUG: 使用单独的排序参数: {params.sort_field}, {params.sort_order}")
+        sorters_list = [{'field': params.sort_field, 'order': params.sort_order}]
+    elif params.sorters:
+        print(f"DEBUG: 使用sorters参数: {params.sorters}")
+        sorters_list = [s.model_dump() for s in params.sorters]
+
     result = get_paginated_results(
-        db, ColumnPermission, page=page, page_size=page_size, filters=filters
+        db, 
+        ColumnPermission, 
+        page=params.page, 
+        page_size=params.page_size, 
+        filters=filters,
+        sorters=sorters_list
     )
     
     # 转换为JSON响应格式
@@ -76,7 +85,7 @@ def get_column_permissions(
         "total": result["total"],
         "page": result["page"],
         "page_size": result["page_size"],
-        "items": [ColumnPermissionOut.from_orm(item) for item in result["items"]]
+        "items": [ColumnPermissionOut.model_validate(item) for item in result["items"]]
     }
 
 @router.get("/{permission_id}", response_model=ColumnPermissionOut)

@@ -11,6 +11,7 @@ const TablePermissionList = () => {
   const [current, setCurrent] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({});
+  const [sorters, setSorters] = useState([]);
   const [formVisible, setFormVisible] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
@@ -22,8 +23,14 @@ const TablePermissionList = () => {
       const params = {
         ...filters,
         page: current,
-        page_size: pageSize
+        page_size: pageSize,
       };
+      if (sorters.length > 0) {
+        // 使用单独的参数传递排序字段和排序方向，避免复杂的JSON序列化
+        const firstSorter = sorters[0]; // 暂时只处理第一个排序
+        params.sort_field = firstSorter.field;
+        params.sort_order = firstSorter.order;
+      }
       const data = await getTablePermissions(params);
       setPermissions(data.items);
       setTotal(data.total);
@@ -37,7 +44,7 @@ const TablePermissionList = () => {
 
   useEffect(() => {
     fetchTablePermissions();
-  }, [current, pageSize, filters]);
+  }, [current, pageSize, filters, sorters]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -83,9 +90,16 @@ const TablePermissionList = () => {
   };
 
   // 表格翻页处理
-  const handleTableChange = (pagination) => {
+  const handleTableChange = (pagination, filters, sorter) => {
     setCurrent(pagination.current);
     setPageSize(pagination.pageSize);
+
+    const sorterList = Array.isArray(sorter) ? sorter : (sorter.field ? [sorter] : []);
+    const activeSorters = sorterList
+      .filter(s => s.order)
+      .map(s => ({ field: s.field, order: s.order }));
+    
+    setSorters(activeSorters);
   };
 
   // 表单提交成功后的处理
@@ -100,27 +114,32 @@ const TablePermissionList = () => {
       title: '数据库名',
       dataIndex: 'db_name',
       key: 'db_name',
+      sorter: { multiple: 1 },
     },
     {
       title: '表名',
       dataIndex: 'table_name',
       key: 'table_name',
+      sorter: { multiple: 2 },
     },
     {
       title: '用户名',
       dataIndex: 'user_name',
       key: 'user_name',
+      sorter: { multiple: 3 },
     },
     {
       title: '角色名',
       dataIndex: 'role_name',
       key: 'role_name',
+      sorter: { multiple: 4 },
     },
     {
       title: '创建时间',
       dataIndex: 'create_time',
       key: 'create_time',
       render: (text) => new Date(text).toLocaleString(),
+      sorter: { multiple: 5 },
     },
     {
       title: '操作',

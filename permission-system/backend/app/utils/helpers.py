@@ -21,9 +21,10 @@ def get_paginated_results(
     model: Any, 
     page: int = 1, 
     page_size: int = 10, 
-    filters: Dict[str, Any] = None
+    filters: Optional[Dict[str, Any]] = None,
+    sorters: Optional[List[Dict[str, str]]] = None
 ):
-    """获取分页结果"""
+    """获取分页结果，支持过滤和排序"""
     if page <= 0:
         page = 1
     if page_size <= 0:
@@ -33,6 +34,18 @@ def get_paginated_results(
     
     if filters:
         query = filter_query(query, model, filters)
+
+    # Sorting logic
+    if sorters:
+        for sorter in sorters:
+            field = sorter.get('field')
+            order = sorter.get('order')
+            if field and hasattr(model, field):
+                column_to_sort = getattr(model, field)
+                if order == 'descend':
+                    query = query.order_by(column_to_sort.desc())
+                else:
+                    query = query.order_by(column_to_sort.asc())
     
     # 计算总数
     total = query.count()

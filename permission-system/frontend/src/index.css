@@ -5,6 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #FFEFD5;
 }
 
 code {
@@ -12,27 +13,55 @@ code {
     monospace;
 }
 
-.ant-layout {
+html, #root, .ant-layout {
+  background-color: #FFEFD5;
   min-height: 100vh;
 }
 
 .site-layout-content {
+  background-color: #FFEFD5 !important;
   padding: 24px;
-  background: #fff;
+  background: #FFEFD5;
+}
+
+.ant-modal,
+.ant-modal-content {
+  background-color: #FFFFFF !important;
+}
+
+/* Modal 内部输入框背景白色 */
+.ant-modal .ant-input,
+.ant-modal .ant-input-affix-wrapper,
+.ant-modal .ant-select-selector,
+.ant-modal textarea {
+  background-color: #FFFFFF !important;
+}
+
+
+
+.ant-layout-header,
+.ant-card,
+.ant-card-head,
+.ant-card-body,
+.ant-table,
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td {
+  background-color: #FFEFD5 !important;
 }
 
 .ant-layout-header {
   padding: 0;
+  background-color: #00BFFF !important;
 }
 
 .logo {
   height: 32px;
   margin: 16px;
-  background: rgba(255, 255, 255, 0.3);
+  background-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #FFFF00;
   font-weight: bold;
   font-size: 16px;
 }
@@ -41,10 +70,57 @@ code {
   width: 100%;
 }
 
+/* Sider 标题文字颜色黄 */
+.ant-layout-sider > div:first-child h3 {
+  color: #191913 !important;
+}
+
+/* 头像 Icon 颜色黑 */
+.ant-avatar-icon,
+.ant-avatar-icon svg,
+.ant-avatar svg {
+  color: #000000 !important;
+  fill: #000000 !important;
+}
+
 /* 表格操作列样式 */
 .action-column .ant-space {
   display: flex;
   gap: 8px;
+}
+
+/* 最终全局覆盖，确保任何残留背景为 PapayaWhip */
+*, *::before, *::after {
+  background-color: transparent !important;
+}
+body, html, #root, .ant-layout, .ant-layout-header, .ant-layout-content, .ant-layout-sider, .ant-menu, .ant-card, .ant-table, .ant-input, .ant-select, .ant-btn {
+  background-color: #FFEFD5 !important;
+}
+
+/* Modal 表单项背景白色 */
+.ant-modal .ant-form-item,
+.ant-modal .ant-form-item-label,
+.ant-modal .ant-form-item-control {
+  background-color: #FFFFFF !important;
+}
+
+/* 覆盖其他 Ant 组件背景色 */
+
+/* 紫色主题按钮 */
+.ant-btn-primary,
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: #6D28D9 !important;
+  border-color: #6D28D9 !important;
+  color: #FFFFFF !important;
+}
+
+.ant-menu,
+.ant-menu-item,
+.ant-menu-submenu-title,
+.ant-menu-item-selected,
+.ant-form-item {
+  background-color: #FFEFD5 !important;
 }
 
 /* 分页组件样式 */
@@ -73,4 +149,22 @@ code {
   .ant-card-body {
     padding: 16px;
   }
+}
+
+/* 去除 Modal 白色阴影边 */
+.ant-modal,
+.ant-modal-wrap,
+.ant-modal-content {
+  box-shadow: none !important;   /* 彻底移除 */
+}
+
+/* 列排序 Tooltip 背景天蓝 */
+.ant-tooltip-inner {
+  background-color: #00FF00 !important;  /* SkyBlue */
+  color: #ffffff !important;             /* 字体保持可读性 */
+}
+
+/* 箭头同步变色 */
+.ant-tooltip-arrow::before {
+  background-color: #00FF00 !important;
 }

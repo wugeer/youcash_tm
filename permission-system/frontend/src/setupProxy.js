@@ -7,7 +7,7 @@ module.exports = function(app) {
       target: 'http://localhost:8000',
       changeOrigin: true,
       pathRewrite: {
-        '^/api': '', // 去除路径中的 /api 前缀
+        '^/api': '/api',
       },
     })
   );

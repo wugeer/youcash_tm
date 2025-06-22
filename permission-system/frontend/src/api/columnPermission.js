@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取字段权限列表
 export function getColumnPermissions(params) {
   return request({
-    url: '/column-permissions',
+    url: '/column-permissions/',
     method: 'get',
     params,
   });
@@ -20,7 +20,7 @@ export function getColumnPermission(id) {
 // 创建字段权限
 export function createColumnPermission(data) {
   return request({
-    url: '/column-permissions',
+    url: '/column-permissions/',
     method: 'post',
     data,
   });
