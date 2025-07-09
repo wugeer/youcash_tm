@@ -9,6 +9,15 @@ export function getTablePermissions(params) {
   });
 }
 
+// 批量创建表权限
+export function batchCreateTablePermissions(data) {
+  return request({
+    url: '/table-permissions/batch',
+    method: 'post',
+    data,
+  });
+}
+
 // 获取单个表权限详情
 export function getTablePermission(id) {
   return request({

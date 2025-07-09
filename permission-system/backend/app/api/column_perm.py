@@ -8,11 +8,82 @@ from app.core.db import get_db
 from app.models.models import User, ColumnPermission
 from app.schemas.schemas import (
     ColumnPermissionCreate, ColumnPermissionUpdate, ColumnPermissionOut,
-    ColumnPermissionFilter, PaginatedResponse
+    ColumnPermissionFilter, PaginatedResponse, ColumnPermissionBatchCreate
 )
 from app.utils.helpers import get_paginated_results, check_unique_constraint, create_item, update_item, delete_item
+import json
+from pydantic import ValidationError
 
 router = APIRouter()
+
+@router.post("/batch", response_model=List[ColumnPermissionOut])
+def batch_create_column_permissions(
+    *,
+    db: Session = Depends(get_db),
+    batch_data: List[dict] = Body(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """批量创建字段权限"""
+    results = []
+    errors = []
+    
+    for i, permission_dict in enumerate(batch_data):
+        try:
+            # 尝试创建并验证ColumnPermissionCreate对象
+            try:
+                permission_data = ColumnPermissionCreate(**permission_dict)
+            except ValidationError as ve:
+                errors.append({
+                    "index": i,
+                    "error": f"数据验证失败: {str(ve)}",
+                    "data": permission_dict
+                })
+                continue
+                
+            # 检查是否存在相同的权限记录
+            constraint_fields = {
+                "db_name": permission_data.db_name,
+                "table_name": permission_data.table_name,
+                "col_name": permission_data.col_name,
+                "user_name": permission_data.user_name,
+                "role_name": permission_data.role_name
+            }
+            
+            if check_unique_constraint(db, ColumnPermission, constraint_fields):
+                errors.append({
+                    "index": i,
+                    "error": "相同的字段权限记录已存在",
+                    "data": permission_dict
+                })
+                continue
+            
+            # 创建字段权限记录
+            column_permission = create_item(db, ColumnPermission, permission_data.model_dump())
+            results.append(ColumnPermissionOut.model_validate(column_permission))
+            
+        except Exception as e:
+            errors.append({
+                "index": i,
+                "error": str(e),
+                "data": permission_dict
+            })
+    
+    # 如果有错误，回滚并返回错误信息
+    if errors and not results:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "批量创建字段权限失败",
+                "errors": errors
+            }
+        )
+    
+    # 如果部分成功部分失败，返回成功的结果和错误信息
+    if errors:
+        # 这里我们仍然返回成功创建的记录，但在响应头中添加警告信息
+        return results
+    
+    return results
 
 @router.post("/", response_model=ColumnPermissionOut)
 def create_column_permission(

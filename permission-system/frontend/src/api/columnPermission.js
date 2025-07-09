@@ -42,3 +42,12 @@ export function deleteColumnPermission(id) {
     method: 'delete',
   });
 }
+
+// 批量创建字段权限
+export function batchCreateColumnPermissions(data) {
+  return request({
+    url: '/column-permissions/batch',
+    method: 'post',
+    data,
+  });
+}

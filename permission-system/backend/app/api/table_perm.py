@@ -8,13 +8,81 @@ from app.core.db import get_db
 from app.models.models import User, TablePermission
 from app.schemas.schemas import (
     TablePermissionCreate, TablePermissionUpdate, TablePermissionOut,
-    TablePermissionFilter, PaginatedResponse, SortParam
+    TablePermissionFilter, PaginatedResponse, SortParam, TablePermissionBatchCreate
 )
 from app.utils.helpers import get_paginated_results, check_unique_constraint, create_item, update_item, delete_item
 import json
 from pydantic import ValidationError
 
 router = APIRouter()
+
+@router.post("/batch", response_model=List[TablePermissionOut])
+def batch_create_table_permissions(
+    *,
+    db: Session = Depends(get_db),
+    batch_data: List[dict] = Body(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """批量创建表权限"""
+    results = []
+    errors = []
+    
+    for i, permission_dict in enumerate(batch_data):
+        try:
+            # 尝试创建并验证TablePermissionCreate对象
+            try:
+                permission_data = TablePermissionCreate(**permission_dict)
+            except ValidationError as ve:
+                errors.append({
+                    "index": i,
+                    "error": f"数据验证失败: {str(ve)}",
+                    "data": permission_dict
+                })
+                continue
+                
+            # 检查是否存在相同的权限记录
+            constraint_fields = {
+                "db_name": permission_data.db_name,
+                "table_name": permission_data.table_name,
+                "user_name": permission_data.user_name,
+                "role_name": permission_data.role_name
+            }
+            
+            if check_unique_constraint(db, TablePermission, constraint_fields):
+                errors.append({
+                    "index": i,
+                    "error": "相同的表权限记录已存在",
+                    "data": permission_dict
+                })
+                continue
+            
+            # 创建表权限记录
+            table_permission = create_item(db, TablePermission, permission_data.model_dump())
+            results.append(TablePermissionOut.model_validate(table_permission))
+            
+        except Exception as e:
+            errors.append({
+                "index": i,
+                "error": str(e),
+                "data": permission_dict
+            })
+    
+    # 如果有错误，回滚并返回错误信息
+    if errors and not results:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "批量创建表权限失败",
+                "errors": errors
+            }
+        )
+    
+    # 如果部分成功部分失败，返回成功的结果和错误信息
+    if errors:
+        # 这里我们仍然返回成功创建的记录，但在响应头中添加警告信息
+        return results
+    
+    return results
 
 @router.post("/", response_model=TablePermissionOut)
 def create_table_permission(

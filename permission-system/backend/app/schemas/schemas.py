@@ -74,6 +74,10 @@ class TablePermissionBase(BaseModel):
         if not user_name and not role_name:
             raise ValueError('用户名和角色名至少需要提供一个')
         return values
+        
+# 批量导入表权限的Schema
+class TablePermissionBatchCreate(BaseModel):
+    items: List[TablePermissionBase]
 
 class TablePermissionCreate(TablePermissionBase):
     pass
@@ -113,6 +117,10 @@ class ColumnPermissionBase(BaseModel):
         if v not in valid_types:
             raise ValueError(f'mask_type必须是以下类型之一: {", ".join(valid_types)}')
         return v
+
+# 批量导入字段权限的Schema
+class ColumnPermissionBatchCreate(BaseModel):
+    items: List[ColumnPermissionBase]
 
 class ColumnPermissionCreate(ColumnPermissionBase):
     pass
@@ -155,6 +163,10 @@ class RowPermissionBase(BaseModel):
         if not user_name and not role_name:
             raise ValueError('用户名和角色名至少需要提供一个')
         return values
+
+# 批量导入行权限的Schema
+class RowPermissionBatchCreate(BaseModel):
+    items: List[RowPermissionBase]
 
 class RowPermissionCreate(RowPermissionBase):
     pass

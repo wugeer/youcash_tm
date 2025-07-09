@@ -168,3 +168,25 @@ body, html, #root, .ant-layout, .ant-layout-header, .ant-layout-content, .ant-la
 .ant-tooltip-arrow::before {
   background-color: #00FF00 !important;
 }
+
+/* 搜索框样式 - 非聚焦时黑色加粗边框，聚焦时保持紫色边框 */
+.ant-form .ant-input:not(:focus),
+.ant-form .ant-input-affix-wrapper:not(:focus),
+.ant-form .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-focused),
+.ant-form .ant-select:not(.ant-select-focused) .ant-select-selector,
+.ant-form .ant-select-selector:not(:focus) {
+  border-color: #000000 !important;
+  border-width: 2px !important;
+  box-shadow: none !important;
+}
+
+/* 保留聚焦时的紫色边框，并加粗 */
+.ant-form .ant-input:focus,
+.ant-form .ant-input-affix-wrapper:focus,
+.ant-form .ant-input-affix-wrapper-focused,
+.ant-form .ant-select-focused .ant-select-selector,
+.ant-form .ant-select.ant-select-focused .ant-select-selector {
+  border-color: #6D28D9 !important;
+  border-width: 2px !important;
+  box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.2) !important;
+}

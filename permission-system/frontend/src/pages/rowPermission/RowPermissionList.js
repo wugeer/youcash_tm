@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
 import { getRowPermissions, deleteRowPermission } from '../../api/rowPermission';
 import RowPermissionForm from './RowPermissionForm';
+import RowPermissionBatchImport from './RowPermissionBatchImport';
 
 const RowPermissionList = () => {
   const [permissions, setPermissions] = useState([]);
@@ -13,6 +14,7 @@ const RowPermissionList = () => {
   const [filters, setFilters] = useState({});
   const [sorters, setSorters] = useState([]);
   const [formVisible, setFormVisible] = useState(false);
+  const [batchImportVisible, setBatchImportVisible] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
 
@@ -73,6 +75,17 @@ const RowPermissionList = () => {
   const handleAdd = () => {
     setEditingPermission(null);
     setFormVisible(true);
+  };
+  
+  // 打开批量导入模态框
+  const handleBatchImport = () => {
+    setBatchImportVisible(true);
+  };
+  
+  // 批量导入成功后的处理
+  const handleBatchImportSuccess = () => {
+    setBatchImportVisible(false);
+    fetchRowPermissions();
   };
 
   // 编辑权限
@@ -229,13 +242,22 @@ const RowPermissionList = () => {
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-          >
-            添加行权限
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+            >
+              添加行权限
+            </Button>
+            <Button
+              type="primary"
+              icon={<ImportOutlined />}
+              onClick={handleBatchImport}
+            >
+              批量导入
+            </Button>
+          </Space>
         </div>
         
         <Table
@@ -260,6 +282,14 @@ const RowPermissionList = () => {
           onCancel={() => setFormVisible(false)}
           onSuccess={handleFormSuccess}
           initialValues={editingPermission}
+        />
+      )}
+      
+      {batchImportVisible && (
+        <RowPermissionBatchImport
+          visible={batchImportVisible}
+          onCancel={() => setBatchImportVisible(false)}
+          onSuccess={handleBatchImportSuccess}
         />
       )}
     </>

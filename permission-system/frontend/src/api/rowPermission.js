@@ -42,3 +42,12 @@ export function deleteRowPermission(id) {
     method: 'delete',
   });
 }
+
+// 批量创建行权限
+export function batchCreateRowPermissions(data) {
+  return request({
+    url: '/row-permissions/batch',
+    method: 'post',
+    data,
+  });
+}
