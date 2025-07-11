@@ -23,6 +23,7 @@ BACKEND_CORS_ORIGINS = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8000",
+    "http://localhost:13000",
 ]
 
 # 数据库配置

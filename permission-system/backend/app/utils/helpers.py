@@ -42,7 +42,9 @@ def get_paginated_results(
             order = sorter.get('order')
             if field and hasattr(model, field):
                 column_to_sort = getattr(model, field)
-                if order == 'descend':
+                # 处理不同格式的排序方向参数
+                # 'descend'/'desc' 表示降序，其他情况为升序
+                if order and (order.lower() == 'descend' or order.lower() == 'desc'):
                     query = query.order_by(column_to_sort.desc())
                 else:
                     query = query.order_by(column_to_sort.asc())

@@ -57,6 +57,7 @@ class TablePermission(Base):
     user_name = Column(String(50), nullable=True, index=True)  # Changed here
     role_name = Column(String(50), nullable=True, index=True)  # Changed here
     create_time = Column(DateTime(timezone=True), server_default=func.now())
+    update_time = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # 确保db_name, table_name, user_name, role_name的组合是唯一的
     __table_args__ = (
@@ -75,6 +76,7 @@ class ColumnPermission(Base):
     user_name = Column(String(50), nullable=True, index=True)
     role_name = Column(String(50), nullable=True, index=True)
     create_time = Column(DateTime(timezone=True), server_default=func.now())
+    update_time = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # 确保mask_type的值在规定范围内
     __table_args__ = (
@@ -97,6 +99,7 @@ class RowPermission(Base):
     user_name = Column(String(50), nullable=True, index=True)
     role_name = Column(String(50), nullable=True, index=True)
     create_time = Column(DateTime(timezone=True), server_default=func.now())
+    update_time = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # 确保db_name, table_name, user_name, role_name的组合是唯一的
     __table_args__ = (

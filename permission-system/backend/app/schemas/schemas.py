@@ -91,6 +91,7 @@ class TablePermissionUpdate(BaseModel):
 class TablePermissionOut(TablePermissionBase):
     id: int
     create_time: datetime
+    update_time: datetime
     
     class Config:
         from_attributes = True
@@ -145,6 +146,7 @@ class ColumnPermissionUpdate(BaseModel):
 class ColumnPermissionOut(ColumnPermissionBase):
     id: int
     create_time: datetime
+    update_time: datetime
     
     class Config:
         from_attributes = True
@@ -181,6 +183,7 @@ class RowPermissionUpdate(BaseModel):
 class RowPermissionOut(RowPermissionBase):
     id: int
     create_time: datetime
+    update_time: datetime
     
     class Config:
         from_attributes = True
