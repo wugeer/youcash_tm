@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # 合并前后端的单一服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.combined
+    container_name: permission-system
+    restart: always
+    environment:
+      # 连接到外部PostgreSQL数据库
+      - DATABASE_URL=postgresql://permission_user:permission_pass@host.docker.internal:5432/permission_system
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-BKiPGiS9hbaAHc97aG7llxNB5k_48s1zLo1dmt8HfOI=}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_DAYS=7
+      - CORS_ORIGINS=["http://localhost:18000"]
+    ports:
+      - "18000:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - permission-network
+
+networks:
+  permission-network:
+    driver: bridge

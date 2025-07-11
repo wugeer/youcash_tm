@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build: ./backend
+    container_name: permission-backend
+    restart: always
+    environment:
+      # 连接到外部PostgreSQL数据库
+      - DATABASE_URL=postgresql://permission_user:permission_pass@host.docker.internal:5432/permission_system
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-BKiPGiS9hbaAHc97aG7llxNB5k_48s1zLo1dmt8HfOI=}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_DAYS=7
+      - CORS_ORIGINS=["http://frontend", "http://localhost:18000"]
+    volumes:
+      - ./backend:/app
+    networks:
+      - permission-network
+    ports:
+      - "18182:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # 前端服务
+  frontend:
+    build: ./frontend
+    container_name: permission-frontend
+    restart: always
+    networks:
+      - permission-network
+    ports:
+      - "18000:80"
+
+networks:
+  permission-network:
+    driver: bridge
