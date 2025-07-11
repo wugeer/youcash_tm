@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
-import { getTablePermissions, deleteTablePermission } from '../../api/tablePermission';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined, SyncOutlined } from '@ant-design/icons';
+import { getTablePermissions, deleteTablePermission, syncTablePermissions, syncTablePermission } from '../../api/tablePermission';
 import TablePermissionForm from './TablePermissionForm';
 import TablePermissionBatchImport from './TablePermissionBatchImport';
 
@@ -77,7 +77,19 @@ const TablePermissionList = () => {
   const handleBatchImport = () => {
     setBatchImportVisible(true);
   };
-  
+
+  // 同步表权限
+  const handleSync = async () => {
+    try {
+      await syncTablePermissions();
+      message.success('同步成功');
+      fetchTablePermissions();
+    } catch (error) {
+      console.error('同步表权限失败:', error);
+      message.error('同步失败');
+    }
+  };
+
   // 批量导入成功后的处理
   const handleBatchImportSuccess = () => {
     setBatchImportVisible(false);
@@ -88,6 +100,17 @@ const TablePermissionList = () => {
   const handleEdit = (record) => {
     setEditingPermission(record);
     setFormVisible(true);
+  };
+
+  // 同步单行权限
+  const handleSyncRow = async (id) => {
+    try {
+      await syncTablePermission(id);
+      message.success('同步成功');
+    } catch (error) {
+      console.error('同步表权限失败:', error);
+      message.error('同步失败');
+    }
   };
 
   // 删除权限
@@ -152,7 +175,17 @@ const TablePermissionList = () => {
       dataIndex: 'create_time',
       key: 'create_time',
       render: (text) => new Date(text).toLocaleString(),
-      sorter: { multiple: 5 },
+      sorter: true,
+      sortDirections: ['ascend', 'descend'],
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'update_time',
+      key: 'update_time',
+      render: (text) => new Date(text).toLocaleString(),
+      sorter: true,
+      sortDirections: ['ascend', 'descend'],
+      defaultSortOrder: 'descend',
     },
     {
       title: '操作',
@@ -166,6 +199,13 @@ const TablePermissionList = () => {
             onClick={() => handleEdit(record)}
           >
             编辑
+          </Button>
+          <Button 
+            icon={<SyncOutlined />} 
+            size="small"
+            onClick={() => handleSyncRow(record.id)}
+          >
+            同步
           </Button>
           <Popconfirm
             title="确定要删除此项吗？"
@@ -241,6 +281,13 @@ const TablePermissionList = () => {
               onClick={handleBatchImport}
             >
               批量导入
+            </Button>
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={handleSync}
+            >
+              同步权限
             </Button>
           </Space>
         </div>

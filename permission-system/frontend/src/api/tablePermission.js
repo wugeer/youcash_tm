@@ -44,6 +44,22 @@ export function updateTablePermission(id, data) {
   });
 }
 
+// 同步表权限
+export function syncTablePermissions() {
+  return request({
+    url: '/table-permissions/sync',
+    method: 'post',
+  });
+}
+
+// 同步单个表权限
+export function syncTablePermission(id) {
+  return request({
+    url: `/table-permissions/${id}/sync`,
+    method: 'post',
+  });
+}
+
 // 删除表权限
 export function deleteTablePermission(id) {
   return request({

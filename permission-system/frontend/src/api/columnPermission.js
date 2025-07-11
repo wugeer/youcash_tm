@@ -35,6 +35,22 @@ export function updateColumnPermission(id, data) {
   });
 }
 
+// 同步字段权限
+export function syncColumnPermissions() {
+  return request({
+    url: '/column-permissions/sync',
+    method: 'post',
+  });
+}
+
+// 同步单个字段权限
+export function syncColumnPermission(id) {
+  return request({
+    url: `/column-permissions/${id}/sync`,
+    method: 'post',
+  });
+}
+
 // 删除字段权限
 export function deleteColumnPermission(id) {
   return request({

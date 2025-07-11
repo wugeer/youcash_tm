@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, message, Alert, Typography } from 'antd';
-import { batchCreateTablePermissions } from '../../api/tablePermission';
+import { batchImportHdfsQuotas } from '../../api/hdfsQuota';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
 
-const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
+const HdfsQuotaBatchImport = ({ visible, onCancel, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [parseError, setParseError] = useState(null);
@@ -28,14 +28,14 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       // 使用制表符或逗号分隔
       const parts = line.split(/[,\t]+/).map(part => part.trim());
       
-      // 检查每行至少有2个字段（数据库名和表名是必须的）
+      // 检查每行至少有2个字段
       if (parts.length < 2) {
-        errors.push(`第 ${index + 1} 行: 格式不正确，至少需要数据库名和表名`);
+        errors.push(`第 ${index + 1} 行: 格式不正确，需要数据库名和HDFS配额`);
         return;
       }
 
       // 解析字段
-      const [db_name, table_name, user_names = '', role_names = ''] = parts;
+      const [db_name, hdfs_quota] = parts;
       
       // 验证必填字段
       if (!db_name) {
@@ -43,68 +43,18 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
         return;
       }
       
-      if (!table_name) {
-        errors.push(`第 ${index + 1} 行: 表名不能为空`);
-        return;
-      }
-      
-      // 验证用户名和角色名至少有一个
-      if (!user_names && !role_names) {
-        errors.push(`第 ${index + 1} 行: 用户名和角色名至少填一个`);
-        return;
-      }
-      
-      // 处理多用户和多角色（使用+分隔）
-      const userNameList = user_names ? user_names.split('+').map(name => name.trim()).filter(name => name) : [];
-      const roleNameList = role_names ? role_names.split('+').map(name => name.trim()).filter(name => name) : [];
-
-      // 如果用户名和角色名都为空列表，说明格式不对
-      if (userNameList.length === 0 && roleNameList.length === 0) {
-        errors.push(`第 ${index + 1} 行: 用户名和角色名至少填一个`);
+      // 验证配额是否为有效数字且大于0
+      const quota = parseFloat(hdfs_quota);
+      if (isNaN(quota) || quota <= 0) {
+        errors.push(`第 ${index + 1} 行: HDFS配额必须是大于0的数值`);
         return;
       }
 
-      // 一一对应方式处理用户名和角色名
-      if (userNameList.length === 0) {
-        // 只有角色名，没有用户名
-        for (const roleName of roleNameList) {
-          parsedData.push({
-            db_name,
-            table_name,
-            user_name: '',
-            role_name: roleName
-          });
-        }
-      } else if (roleNameList.length === 0) {
-        // 只有用户名，没有角色名
-        for (const userName of userNameList) {
-          parsedData.push({
-            db_name,
-            table_name,
-            user_name: userName,
-            role_name: ''
-          });
-        }
-      } else {
-        // 既有用户名也有角色名，一一对应处理
-        const maxLength = Math.max(userNameList.length, roleNameList.length);
-        
-        for (let i = 0; i < maxLength; i++) {
-          // 获取当前索引的用户名和角色名，如果超出范围则为空
-          const userName = i < userNameList.length ? userNameList[i] : '';
-          const roleName = i < roleNameList.length ? roleNameList[i] : '';
-          
-          // 如果当前位置有用户名或角色名，则添加一条记录
-          if (userName || roleName) {
-            parsedData.push({
-              db_name,
-              table_name,
-              user_name: userName,
-              role_name: roleName
-            });
-          }
-        }
-      }
+      // 添加到解析后的数据中
+      parsedData.push({
+        db_name,
+        hdfs_quota: quota
+      });
     });
 
     if (errors.length > 0) {
@@ -128,8 +78,8 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       setLoading(true);
 
       // 调用批量创建API
-      await batchCreateTablePermissions(parseResult.data);
-      message.success(`成功导入 ${parseResult.data.length} 条表权限记录`);
+      const result = await batchImportHdfsQuotas(parseResult.data);
+      message.success(`成功导入 ${result.success} 条HDFS配额记录，失败 ${result.failed} 条`);
       form.resetFields();
       onSuccess();
     } catch (error) {
@@ -157,7 +107,7 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
 
   return (
     <Modal
-      title="批量导入表权限"
+      title="批量导入HDFS配额"
       open={visible}
       onCancel={onCancel}
       width={700}
@@ -179,18 +129,15 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
               请按照以下格式输入数据，每行一条记录：
             </Paragraph>
             <Paragraph>
-              <Text code>数据库名,表名,用户名1+用户名2+...,角色名1+角色名2+...</Text>
+              <Text code>数据库名,HDFS配额(GB)</Text>
             </Paragraph>
             <Paragraph>
               说明：
               <ul>
                 <li>字段之间使用逗号或制表符分隔</li>
-                <li>数据库名和表名为必填项</li>
-                <li>用户名和角色名至少填写一个</li>
-                <li>多个用户名或角色名之间使用加号(+)分隔</li>
-                <li>示例：<Text code>test_db,users,admin+guest,</Text> 或 <Text code>test_db,orders,user1,manager+viewer</Text></li>
-                <li>多用户多角色将一一对应创建权限记录，例如 <Text code>test_db,users,admin+guest,manager+viewer</Text> 会创建2条记录：admin-manager和guest-viewer</li>
-                <li>如果用户数量和角色数量不同，多出的部分将单独创建权限记录</li>
+                <li>数据库名和HDFS配额均为必填项</li>
+                <li>HDFS配额必须是大于0的数值，单位为GB</li>
+                <li>示例：<Text code>test_db,100</Text> 或 <Text code>hive_db,200.5</Text></li>
               </ul>
             </Paragraph>
           </div>
@@ -225,4 +172,4 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
   );
 };
 
-export default TablePermissionBatchImport;
+export default HdfsQuotaBatchImport;

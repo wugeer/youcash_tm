@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col, Select } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
-import { getColumnPermissions, deleteColumnPermission } from '../../api/columnPermission';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined, SyncOutlined } from '@ant-design/icons';
+import { getColumnPermissions, deleteColumnPermission, syncColumnPermissions, syncColumnPermission } from '../../api/columnPermission';
 import ColumnPermissionForm from './ColumnPermissionForm';
 import ColumnPermissionBatchImport from './ColumnPermissionBatchImport';
 
@@ -91,10 +91,33 @@ const ColumnPermissionList = () => {
     fetchColumnPermissions();
   };
 
+  // 同步字段权限
+  const handleSync = async () => {
+    try {
+      await syncColumnPermissions();
+      message.success('同步成功');
+      fetchColumnPermissions();
+    } catch (error) {
+      console.error('同步字段权限失败:', error);
+      message.error('同步失败');
+    }
+  };
+
   // 编辑权限
   const handleEdit = (record) => {
     setEditingPermission(record);
     setFormVisible(true);
+  };
+
+  // 同步单行权限
+  const handleSyncRow = async (id) => {
+    try {
+      await syncColumnPermission(id);
+      message.success('同步成功');
+    } catch (error) {
+      console.error('同步字段权限失败:', error);
+      message.error('同步失败');
+    }
   };
 
   // 删除权限
@@ -180,6 +203,18 @@ const ColumnPermissionList = () => {
       dataIndex: 'create_time',
       key: 'create_time',
       render: (text) => new Date(text).toLocaleString(),
+      sorter: true,
+      sortDirections: ['ascend', 'descend'],
+      defaultSortOrder: 'descend',
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'update_time',
+      key: 'update_time',
+      render: (text) => new Date(text).toLocaleString(),
+      sorter: true,
+      sortDirections: ['ascend', 'descend'],
+      defaultSortOrder: 'descend',
     },
     {
       title: '操作',
@@ -193,6 +228,13 @@ const ColumnPermissionList = () => {
             onClick={() => handleEdit(record)}
           >
             编辑
+          </Button>
+          <Button 
+            icon={<SyncOutlined />} 
+            size="small"
+            onClick={() => handleSyncRow(record.id)}
+          >
+            同步
           </Button>
           <Popconfirm
             title="确定要删除此项吗？"
@@ -296,6 +338,13 @@ const ColumnPermissionList = () => {
               onClick={handleBatchImport}
             >
               批量导入
+            </Button>
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={handleSync}
+            >
+              同步权限
             </Button>
           </Space>
         </div>

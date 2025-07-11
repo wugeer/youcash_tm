@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import { getHdfsQuotas, deleteHdfsQuota } from '../../api/hdfsQuota';
+import { 
+  Table, Button, Space, Popconfirm, message, 
+  Card, Form, Input, Row, Col
+} from 'antd';
+import { 
+  PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, 
+  UploadOutlined, SyncOutlined
+} from '@ant-design/icons';
+import { getHdfsQuotas, deleteHdfsQuota, syncHdfsQuotas, syncHdfsQuota } from '../../api/hdfsQuota';
 import HdfsQuotaForm from './HdfsQuotaForm';
+import HdfsQuotaBatchImport from './HdfsQuotaBatchImport';
 
 const HdfsQuotaList = () => {
   const [quotas, setQuotas] = useState([]);
@@ -15,6 +22,12 @@ const HdfsQuotaList = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingQuota, setEditingQuota] = useState(null);
   const [form] = Form.useForm();
+  
+  // 批量导入相关状态
+  const [batchImportVisible, setBatchImportVisible] = useState(false);
+
+  // 同步中状态
+  const [syncLoading, setSyncLoading] = useState(false);
 
   // 获取HDFS配额列表
   const fetchHdfsQuotas = async () => {
@@ -76,6 +89,32 @@ const HdfsQuotaList = () => {
     setFormVisible(true);
   };
 
+  // 同步HDFS配额
+  const handleSync = async () => {
+    try {
+      setSyncLoading(true);
+      await syncHdfsQuotas();
+      message.success('同步成功');
+      fetchHdfsQuotas();
+    } catch (error) {
+      console.error('同步HDFS配额失败:', error);
+      message.error('同步失败');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // 同步单行配额
+  const handleSyncRow = async (id) => {
+    try {
+      await syncHdfsQuota(id);
+      message.success('同步成功');
+    } catch (error) {
+      console.error('同步HDFS配额失败:', error);
+      message.error('同步失败');
+    }
+  };
+
   // 删除配额
   const handleDelete = async (id) => {
     try {
@@ -88,22 +127,50 @@ const HdfsQuotaList = () => {
     }
   };
 
-  // 表格翻页处理
+  // 表格翻页和排序处理
   const handleTableChange = (pagination, filters, sorter) => {
     setCurrent(pagination.current);
     setPageSize(pagination.pageSize);
 
-    const sorterList = Array.isArray(sorter) ? sorter : (sorter.field ? [sorter] : []);
-    const activeSorters = sorterList
-      .filter(s => s.order)
-      .map(s => ({ field: s.field, order: s.order }));
+    // 处理排序状态
+    console.log('Table sorter:', sorter);
+    let newSorters = [];
     
-    setSorters(activeSorters);
+    if (sorter && sorter.field) {
+      // 单列排序
+      if (sorter.order) {
+        newSorters = [{ field: sorter.field, order: sorter.order }];
+      }
+    } else if (Array.isArray(sorter) && sorter.length > 0) {
+      // 多列排序
+      newSorters = sorter
+        .filter(s => s.order)
+        .map(s => ({ field: s.field, order: s.order }));
+    }
+    
+    console.log('Setting new sorters:', newSorters);
+    setSorters(newSorters);
   };
 
   // 表单提交成功后的处理
   const handleFormSuccess = () => {
     setFormVisible(false);
+    fetchHdfsQuotas();
+  };
+  
+  // 显示批量导入模态框
+  const showBatchImport = () => {
+    setBatchImportVisible(true);
+  };
+  
+  // 关闭批量导入模态框
+  const handleBatchImportCancel = () => {
+    setBatchImportVisible(false);
+  };
+  
+  // 批量导入成功处理
+  const handleBatchImportSuccess = () => {
+    setBatchImportVisible(false);
     fetchHdfsQuotas();
   };
 
@@ -113,13 +180,15 @@ const HdfsQuotaList = () => {
       title: '数据库名',
       dataIndex: 'db_name',
       key: 'db_name',
-      sorter: { multiple: 1 },
+      sorter: true,
+      sortOrder: sorters.find(s => s.field === 'db_name')?.order,
     },
     {
       title: 'HDFS配额(GB)',
       dataIndex: 'hdfs_quota',
       key: 'hdfs_quota',
-      sorter: { multiple: 2 },
+      sorter: true,
+      sortOrder: sorters.find(s => s.field === 'hdfs_quota')?.order,
       render: (text) => text.toFixed(2),
     },
     {
@@ -127,14 +196,16 @@ const HdfsQuotaList = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       render: (text) => new Date(text).toLocaleString(),
-      sorter: { multiple: 3 },
+      sorter: true,
+      sortOrder: sorters.find(s => s.field === 'created_at')?.order,
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
       render: (text) => new Date(text).toLocaleString(),
-      sorter: { multiple: 4 },
+      sorter: true,
+      sortOrder: sorters.find(s => s.field === 'updated_at')?.order,
     },
     {
       title: '操作',
@@ -148,6 +219,13 @@ const HdfsQuotaList = () => {
             onClick={() => handleEdit(record)}
           >
             编辑
+          </Button>
+          <Button 
+            icon={<SyncOutlined />} 
+            size="small"
+            onClick={() => handleSyncRow(record.id)}
+          >
+            同步
           </Button>
           <Popconfirm
             title="确定要删除此项吗？"
@@ -192,13 +270,29 @@ const HdfsQuotaList = () => {
 
       <Card>
         <div style={{ marginBottom: 16 }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-          >
-            添加HDFS配额
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+            >
+              添加HDFS配额
+            </Button>
+            <Button
+              icon={<UploadOutlined />}
+              onClick={showBatchImport}
+            >
+              批量导入
+            </Button>
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              loading={syncLoading}
+              onClick={handleSync}
+            >
+              同步配额
+            </Button>
+          </Space>
         </div>
         
         <Table
@@ -225,6 +319,12 @@ const HdfsQuotaList = () => {
           initialValues={editingQuota}
         />
       )}
+      
+      <HdfsQuotaBatchImport 
+        visible={batchImportVisible}
+        onCancel={handleBatchImportCancel}
+        onSuccess={handleBatchImportSuccess}
+      />
     </>
   );
 };

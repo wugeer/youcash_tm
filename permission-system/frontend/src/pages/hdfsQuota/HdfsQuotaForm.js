@@ -67,7 +67,16 @@ const HdfsQuotaForm = ({ visible, onCancel, onSuccess, initialValues }) => {
           label="HDFS配额(GB)"
           rules={[
             { required: true, message: '请输入HDFS配额' },
-            { type: 'number', min: 0.1, message: '配额必须大于0' }
+            { type: 'number', min: 0.1, message: '配额必须大于0' },
+            {
+              validator: (_, value) => {
+                if (value === undefined || value === null) return Promise.reject();
+                if (isNaN(Number(value))) {
+                  return Promise.reject('请输入有效的数字');
+                }
+                return Promise.resolve();
+              }
+            }
           ]}
         >
           <InputNumber
@@ -75,6 +84,15 @@ const HdfsQuotaForm = ({ visible, onCancel, onSuccess, initialValues }) => {
             style={{ width: '100%' }}
             step={1}
             precision={2}
+            stringMode={false}
+            parser={(value) => {
+              const parsed = parseFloat(value);
+              return isNaN(parsed) ? '' : parsed;
+            }}
+            formatter={(value) => {
+              if (value === '' || value === undefined || value === null) return '';
+              return String(value);
+            }}
           />
         </Form.Item>
       </Form>

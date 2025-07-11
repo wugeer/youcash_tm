@@ -35,7 +35,7 @@ const ColumnPermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       }
 
       // 解析字段
-      const [db_name, table_name, col_name, mask_type, user_name = '', role_name = ''] = parts;
+      const [db_name, table_name, col_name, mask_type, user_names = '', role_names = ''] = parts;
       
       // 验证必填字段
       if (!db_name) {
@@ -66,20 +66,68 @@ const ColumnPermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       }
       
       // 验证用户名和角色名至少有一个
-      if (!user_name && !role_name) {
+      if (!user_names && !role_names) {
+        errors.push(`第 ${index + 1} 行: 用户名和角色名至少填一个`);
+        return;
+      }
+      
+      // 处理多用户和多角色（使用+分隔）
+      const userNameList = user_names ? user_names.split('+').map(name => name.trim()).filter(name => name) : [];
+      const roleNameList = role_names ? role_names.split('+').map(name => name.trim()).filter(name => name) : [];
+
+      // 如果用户名和角色名都为空列表，说明格式不对
+      if (userNameList.length === 0 && roleNameList.length === 0) {
         errors.push(`第 ${index + 1} 行: 用户名和角色名至少填一个`);
         return;
       }
 
-      // 添加到解析后的数据中
-      parsedData.push({
-        db_name,
-        table_name,
-        col_name,
-        mask_type,
-        user_name,
-        role_name
-      });
+      // 一一对应方式处理用户名和角色名
+      if (userNameList.length === 0) {
+        // 只有角色名，没有用户名
+        for (const roleName of roleNameList) {
+          parsedData.push({
+            db_name,
+            table_name,
+            col_name,
+            mask_type,
+            user_name: '',
+            role_name: roleName
+          });
+        }
+      } else if (roleNameList.length === 0) {
+        // 只有用户名，没有角色名
+        for (const userName of userNameList) {
+          parsedData.push({
+            db_name,
+            table_name,
+            col_name,
+            mask_type,
+            user_name: userName,
+            role_name: ''
+          });
+        }
+      } else {
+        // 既有用户名也有角色名，一一对应处理
+        const maxLength = Math.max(userNameList.length, roleNameList.length);
+        
+        for (let i = 0; i < maxLength; i++) {
+          // 获取当前索引的用户名和角色名，如果超出范围则为空
+          const userName = i < userNameList.length ? userNameList[i] : '';
+          const roleName = i < roleNameList.length ? roleNameList[i] : '';
+          
+          // 如果当前位置有用户名或角色名，则添加一条记录
+          if (userName || roleName) {
+            parsedData.push({
+              db_name,
+              table_name,
+              col_name,
+              mask_type,
+              user_name: userName,
+              role_name: roleName
+            });
+          }
+        }
+      }
     });
 
     if (errors.length > 0) {
@@ -154,7 +202,7 @@ const ColumnPermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
               请按照以下格式输入数据，每行一条记录：
             </Paragraph>
             <Paragraph>
-              <Text code>数据库名,表名,列名,脱敏类型,用户名,角色名</Text>
+              <Text code>数据库名,表名,列名,脱敏类型,用户名1+用户名2+...,角色名1+角色名2+...</Text>
             </Paragraph>
             <Paragraph>
               说明：
@@ -163,7 +211,10 @@ const ColumnPermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
                 <li>数据库名、表名、列名和脱敏类型为必填项</li>
                 <li>脱敏类型必须是以下之一: 手机号, 身份证, 银行卡号, 座机号, 姓名, 原文</li>
                 <li>用户名和角色名至少填写一个</li>
-                <li>示例：<Text code>test_db,users,phone,手机号,admin,</Text> 或 <Text code>test_db,orders,id_card,身份证,,manager</Text></li>
+                <li>多个用户名或角色名之间使用加号(+)分隔</li>
+                <li>示例：<Text code>test_db,users,phone,手机号,admin+guest,</Text> 或 <Text code>test_db,orders,id_card,身份证,user1,manager+viewer</Text></li>
+                <li>多用户多角色将一一对应创建权限记录，例如 <Text code>test_db,users,phone,手机号,admin+guest,manager+viewer</Text> 会创建2条记录：admin-manager和guest-viewer</li>
+                <li>如果用户数量和角色数量不同，多出的部分将单独创建权限记录</li>
               </ul>
             </Paragraph>
           </div>

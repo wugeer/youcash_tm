@@ -35,11 +35,27 @@ export function updateRowPermission(id, data) {
   });
 }
 
+// 同步行权限
+export function syncRowPermissions() {
+  return request({
+    url: '/row-permissions/sync',
+    method: 'post',
+  });
+}
+
 // 删除行权限
 export function deleteRowPermission(id) {
   return request({
     url: `/row-permissions/${id}`,
     method: 'delete',
+  });
+}
+
+// 同步单个行权限
+export function syncRowPermission(id) {
+  return request({
+    url: `/row-permissions/${id}/sync`,
+    method: 'post',
   });
 }
 
