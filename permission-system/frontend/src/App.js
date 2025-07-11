@@ -7,6 +7,7 @@ import Register from './pages/auth/Register';
 import TablePermissionList from './pages/tablePermission/TablePermissionList';
 import ColumnPermissionList from './pages/columnPermission/ColumnPermissionList';
 import RowPermissionList from './pages/rowPermission/RowPermissionList';
+import HdfsQuotaList from './pages/hdfsQuota/HdfsQuotaList';
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
@@ -60,6 +61,15 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <RowPermissionList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/hdfs-quotas" 
+            element={
+              <ProtectedRoute>
+                <HdfsQuotaList />
               </ProtectedRoute>
             } 
           />

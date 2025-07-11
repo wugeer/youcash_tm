@@ -253,3 +253,41 @@ class RowPermissionFilter(BaseModel):
             except (json.JSONDecodeError, ValidationError):
                 return None
         return v
+
+
+# HDFS配额相关模式
+class HdfsQuotaBase(BaseModel):
+    db_name: str = Field(..., description="数据库名", max_length=100)
+    hdfs_quota: float = Field(..., description="HDFS配额(GB)", gt=0)
+
+class HdfsQuotaCreate(HdfsQuotaBase):
+    pass
+
+class HdfsQuotaUpdate(BaseModel):
+    db_name: Optional[str] = Field(None, max_length=100)
+    hdfs_quota: Optional[float] = Field(None, gt=0)
+
+class HdfsQuotaOut(HdfsQuotaBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class HdfsQuotaFilter(BaseModel):
+    db_name: Optional[str] = None
+    page: int = 1
+    page_size: int = 10
+    sort_field: Optional[str] = None
+    sort_order: Optional[Literal['ascend', 'descend']] = None
+    sorters: Optional[List[SortParam]] = None
+    
+    @validator("sorters", pre=True)
+    def transform_hdfs_sort_param(cls, v):
+        if isinstance(v, str):
+            try:
+                return [SortParam(**item) for item in json.loads(v)]
+            except (json.JSONDecodeError, ValidationError):
+                return None
+        return v

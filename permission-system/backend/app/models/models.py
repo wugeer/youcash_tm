@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint, CheckConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateTime, Float, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -102,3 +102,13 @@ class RowPermission(Base):
     __table_args__ = (
         UniqueConstraint('db_name', 'table_name', 'user_name', 'role_name', name='unique_row_permission'),
     )
+
+
+class HdfsQuota(Base):
+    __tablename__ = "hdfs_quotas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    db_name = Column(String(100), nullable=False, index=True, unique=True)
+    hdfs_quota = Column(Float, nullable=False, comment="HDFS quota in GB")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

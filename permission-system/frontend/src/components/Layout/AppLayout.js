@@ -7,7 +7,8 @@ import {
   TableOutlined,
   ColumnHeightOutlined,
   FilterOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  HddOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +37,11 @@ const AppLayout = ({ children }) => {
       key: '/row-permissions',
       icon: <FilterOutlined />,
       label: '行权限管理',
+    },
+    {
+      key: '/hdfs-quotas',
+      icon: <HddOutlined />,
+      label: 'HDFS配额管理',
     },
   ];
 
