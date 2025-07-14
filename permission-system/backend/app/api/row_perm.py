@@ -283,6 +283,27 @@ def update_row_permission(
                 detail="更新后的行权限与现有记录冲突"
             )
     
+    # 在更新前对原始数据执行删除同步
+    try:
+        # 保存原始数据的关键信息
+        original_db_name = row_permission.db_name
+        original_table_name = row_permission.table_name
+        original_user_name = row_permission.user_name
+        original_role_name = row_permission.role_name
+        
+        # 对原始数据执行删除同步
+        logger.info(f"[行权限模块] 更新前对原始数据执行删除同步: ID={permission_id}")
+        sync_delete_row_permission(
+            permission_id=permission_id,
+            db_name=original_db_name,
+            table_name=original_table_name,
+            user_name=original_user_name,
+            role_name=original_role_name
+        )
+    except Exception as e:
+        # 如果删除同步失败，记录错误但不中断更新操作
+        logger.error(f"[行权限模块] 更新前删除同步失败: {str(e)}")
+    
     # 预执行 CLI 命令
     run_pre_save_command({**update_data, "id": permission_id})
     # 更新记录
