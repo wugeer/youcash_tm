@@ -11,7 +11,7 @@ export function syncHdfsQuotas() {
 // 同步单个HDFS配额
 export function syncHdfsQuota(id) {
   return request({
-    url: `/hdfs-quotas/${id}/sync`,
+    url: `/hdfs-quotas/sync/${id}`,
     method: 'post',
   });
 }

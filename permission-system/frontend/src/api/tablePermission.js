@@ -55,7 +55,7 @@ export function syncTablePermissions() {
 // 同步单个表权限
 export function syncTablePermission(id) {
   return request({
-    url: `/table-permissions/${id}/sync`,
+    url: `/table-permissions/sync/${id}`,
     method: 'post',
   });
 }

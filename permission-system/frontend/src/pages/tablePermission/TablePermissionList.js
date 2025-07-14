@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined, SyncOutlined } from '@ant-design/icons';
 import { getTablePermissions, deleteTablePermission, syncTablePermissions, syncTablePermission } from '../../api/tablePermission';
@@ -19,7 +19,7 @@ const TablePermissionList = () => {
   const [form] = Form.useForm();
 
   // 获取表权限列表
-  const fetchTablePermissions = async () => {
+  const fetchTablePermissions = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -42,11 +42,11 @@ const TablePermissionList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, current, pageSize, sorters]);
 
   useEffect(() => {
     fetchTablePermissions();
-  }, [current, pageSize, filters, sorters]);
+  }, [fetchTablePermissions]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -201,9 +201,10 @@ const TablePermissionList = () => {
             编辑
           </Button>
           <Button 
-            icon={<SyncOutlined />} 
+            icon={<SyncOutlined style={{ color: '#52c41a' }} />} 
             size="small"
             onClick={() => handleSyncRow(record.id)}
+            style={{ color: '#52c41a' }}
           >
             同步
           </Button>
@@ -283,9 +284,9 @@ const TablePermissionList = () => {
               批量导入
             </Button>
             <Button
-              type="primary"
-              icon={<SyncOutlined />}
+              icon={<SyncOutlined style={{ color: '#52c41a' }} />}
               onClick={handleSync}
+              style={{ color: '#52c41a' }}
             >
               同步权限
             </Button>

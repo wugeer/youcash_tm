@@ -78,6 +78,7 @@ class TablePermissionBase(BaseModel):
 # 批量导入表权限的Schema
 class TablePermissionBatchCreate(BaseModel):
     items: List[TablePermissionBase]
+    batch_sync: bool = False  # 添加批量同步选项，默认为逐条同步
 
 class TablePermissionCreate(TablePermissionBase):
     pass
@@ -122,6 +123,7 @@ class ColumnPermissionBase(BaseModel):
 # 批量导入字段权限的Schema
 class ColumnPermissionBatchCreate(BaseModel):
     items: List[ColumnPermissionBase]
+    batch_sync: bool = False  # 添加批量同步选项，默认为逐条同步
 
 class ColumnPermissionCreate(ColumnPermissionBase):
     pass
@@ -169,6 +171,7 @@ class RowPermissionBase(BaseModel):
 # 批量导入行权限的Schema
 class RowPermissionBatchCreate(BaseModel):
     items: List[RowPermissionBase]
+    batch_sync: bool = False  # 添加批量同步选项，默认为逐条同步
 
 class RowPermissionCreate(RowPermissionBase):
     pass

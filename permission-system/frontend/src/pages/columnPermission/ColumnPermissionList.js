@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Popconfirm, message, Card, Form, Input, Row, Col, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ImportOutlined, SyncOutlined } from '@ant-design/icons';
 import { getColumnPermissions, deleteColumnPermission, syncColumnPermissions, syncColumnPermission } from '../../api/columnPermission';
@@ -21,7 +21,7 @@ const ColumnPermissionList = () => {
   const [form] = Form.useForm();
 
   // 获取字段权限列表
-  const fetchColumnPermissions = async () => {
+  const fetchColumnPermissions = useCallback(async () => {
     try {
       setLoading(true);
       console.log('当前排序状态:', sorters);
@@ -49,11 +49,11 @@ const ColumnPermissionList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, current, pageSize, sorters]);
 
   useEffect(() => {
     fetchColumnPermissions();
-  }, [current, pageSize, filters, sorters]);
+  }, [fetchColumnPermissions]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -230,9 +230,10 @@ const ColumnPermissionList = () => {
             编辑
           </Button>
           <Button 
-            icon={<SyncOutlined />} 
+            icon={<SyncOutlined style={{ color: '#52c41a' }} />} 
             size="small"
             onClick={() => handleSyncRow(record.id)}
+            style={{ color: '#52c41a' }}
           >
             同步
           </Button>
@@ -340,9 +341,9 @@ const ColumnPermissionList = () => {
               批量导入
             </Button>
             <Button
-              type="primary"
-              icon={<SyncOutlined />}
+              icon={<SyncOutlined style={{ color: '#52c41a' }} />}
               onClick={handleSync}
+              style={{ color: '#52c41a' }}
             >
               同步权限
             </Button>

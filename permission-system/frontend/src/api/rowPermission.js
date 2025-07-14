@@ -54,7 +54,7 @@ export function deleteRowPermission(id) {
 // 同步单个行权限
 export function syncRowPermission(id) {
   return request({
-    url: `/row-permissions/${id}/sync`,
+    url: `/row-permissions/sync/${id}`,
     method: 'post',
   });
 }

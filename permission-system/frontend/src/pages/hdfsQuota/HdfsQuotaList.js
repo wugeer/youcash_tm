@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Table, Button, Space, Popconfirm, message, 
   Card, Form, Input, Row, Col
@@ -30,7 +30,7 @@ const HdfsQuotaList = () => {
   const [syncLoading, setSyncLoading] = useState(false);
 
   // 获取HDFS配额列表
-  const fetchHdfsQuotas = async () => {
+  const fetchHdfsQuotas = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -52,11 +52,11 @@ const HdfsQuotaList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, current, pageSize, sorters]);
 
   useEffect(() => {
     fetchHdfsQuotas();
-  }, [current, pageSize, filters, sorters]);
+  }, [fetchHdfsQuotas]);
 
   // 搜索处理
   const handleSearch = (values) => {
@@ -180,6 +180,7 @@ const HdfsQuotaList = () => {
       title: '数据库名',
       dataIndex: 'db_name',
       key: 'db_name',
+
       sorter: true,
       sortOrder: sorters.find(s => s.field === 'db_name')?.order,
     },
@@ -221,9 +222,10 @@ const HdfsQuotaList = () => {
             编辑
           </Button>
           <Button 
-            icon={<SyncOutlined />} 
+            icon={<SyncOutlined style={{ color: '#52c41a' }} />} 
             size="small"
             onClick={() => handleSyncRow(record.id)}
+            style={{ color: '#52c41a' }}
           >
             同步
           </Button>
@@ -279,16 +281,20 @@ const HdfsQuotaList = () => {
               添加HDFS配额
             </Button>
             <Button
+              type="primary"
+              danger={false}
+              ghost={false}
               icon={<UploadOutlined />}
               onClick={showBatchImport}
+              style={{ backgroundColor: '#722ed1 !important', borderColor: '#722ed1 !important', color: '#000 !important' }}
             >
               批量导入
             </Button>
             <Button
-              type="primary"
-              icon={<SyncOutlined />}
+              icon={<SyncOutlined style={{ color: '#52c41a' }} />}
               loading={syncLoading}
               onClick={handleSync}
+              style={{ color: '#52c41a' }}
             >
               同步配额
             </Button>
@@ -300,6 +306,7 @@ const HdfsQuotaList = () => {
           dataSource={quotas}
           rowKey="id"
           loading={loading}
+
           pagination={{
             current,
             pageSize,

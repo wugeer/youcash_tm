@@ -46,7 +46,7 @@ export function syncColumnPermissions() {
 // 同步单个字段权限
 export function syncColumnPermission(id) {
   return request({
-    url: `/column-permissions/${id}/sync`,
+    url: `/column-permissions/sync/${id}`,
     method: 'post',
   });
 }
