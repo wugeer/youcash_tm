@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Form, Input, Button, message, Alert, Typography } from 'antd';
+import { Modal, Form, Input, Button, message, Alert, Typography, Divider } from 'antd';
 import { batchImportHdfsQuotas } from '../../api/hdfsQuota';
 
 const { TextArea } = Input;
@@ -79,27 +79,135 @@ const HdfsQuotaBatchImport = ({ visible, onCancel, onSuccess }) => {
 
       // 调用批量创建API
       const result = await batchImportHdfsQuotas(parseResult.data);
-      message.success(`成功导入 ${result.success} 条HDFS配额记录，失败 ${result.failed} 条`);
+      
+      // 检查是否有同步错误
+      if (result.sync_errors && result.sync_errors.length > 0) {
+        // 格式化同步错误信息
+        const formatErrorMessage = (err) => {
+          if (!err) return '未知错误';
+          
+          // 如果有错误消息字段，直接使用
+          if (err.error) return err.error;
+          
+          // 如果是对象，转为具有可读性的字符串
+          return typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
+        };
+        
+        // 生成错误消息列表
+        const syncErrorMessages = result.sync_errors.map((err, index) => {
+          const dbName = err.id ? `数据库 "${result.items?.[err.id]?.db_name || 'unknown'}"` : '批量同步';
+          return (
+            <div key={`sync-${index}`} style={{ marginBottom: '8px' }}>
+              <div><strong>数据库名：</strong>{dbName}</div>
+              <div><strong>同步错误：</strong>{formatErrorMessage(err)}</div>
+            </div>
+          );
+        });
+        
+        // 显示错误对话框
+        Modal.error({
+          title: '部分记录导入失败',
+          content: (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '16px' }}>成功导入 {result.success} 条HDFS配额记录，失败 {result.failed} 条</div>
+              <Divider />
+              <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>
+                以下 {syncErrorMessages.length} 条记录导入或同步失败：
+              </div>
+              {syncErrorMessages}
+            </div>
+          ),
+          width: 600,
+        });
+      } else {
+        message.success(`成功导入并同步 ${result.success} 条HDFS配额记录，失败 ${result.failed} 条`);
+      }
+      
       form.resetFields();
       onSuccess();
     } catch (error) {
       console.error('批量导入失败:', error);
-      let errorMessage = '批量导入失败';
+      console.log('错误状态:', error.status || error.response?.status);
+      console.log('错误响应:', error.response?.data);
+      console.log('错误详情:', typeof error.response?.data === 'object' ? 
+        JSON.stringify(error.response.data, null, 2) : (error.response?.data || error.message));
+      
+      let errorTitle = '批量导入HDFS配额失败';
+      let errorContent;
       
       if (error.response && error.response.data) {
-        if (error.response.data.detail) {
-          const detail = error.response.data.detail;
+        const errorData = error.response.data;
+        
+        if (errorData.detail) {
+          const detail = errorData.detail;
           if (typeof detail === 'string') {
-            errorMessage = detail;
+            errorContent = (
+              <div>
+                <p>{detail}</p>
+              </div>
+            );
           } else if (Array.isArray(detail) && detail.length > 0) {
-            errorMessage = detail.map((err, index) => 
-              `第 ${index + 1} 条记录: ${err.msg || JSON.stringify(err)}`
-            ).join('\n');
+            errorContent = (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {detail.map((err, index) => (
+                  <div key={index} style={{ marginBottom: '8px' }}>
+                    <strong>第 {index + 1} 条记录:</strong> {err.msg || JSON.stringify(err)}
+                  </div>
+                ))}
+              </div>
+            );
+          } else if (typeof detail === 'object' && detail !== null) {
+            errorContent = (
+              <div>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>
+                  {JSON.stringify(detail, null, 2)}
+                </pre>
+              </div>
+            );
           }
+        } else if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          errorContent = (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {errorData.errors.map((err, index) => {
+                const errText = typeof err === 'string' ? err : (err.error || err.msg || JSON.stringify(err));
+                return (
+                  <div key={index} style={{ marginBottom: '8px' }}>
+                    <strong>错误 {index + 1}:</strong> {errText}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        } else {
+          errorContent = (
+            <div>
+              <pre style={{ whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(errorData, null, 2)}
+              </pre>
+            </div>
+          );
         }
+      } else {
+        errorContent = (
+          <div>
+            <p>{error.message || '网络错误或服务器无响应'}</p>
+            {error.stack && (
+              <details>
+                <summary>错误详情</summary>
+                <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                  {error.stack}
+                </pre>
+              </details>
+            )}
+          </div>
+        );
       }
       
-      message.error(errorMessage);
+      Modal.error({
+        title: errorTitle,
+        content: errorContent,
+        width: 600
+      });
     } finally {
       setLoading(false);
     }

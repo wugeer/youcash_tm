@@ -1,34 +1,29 @@
-# 构建阶段
-FROM node:22-alpine as build
+FROM nginx:stable-alpine
 
-WORKDIR /app
+# 安装所需的调试和网络工具
+RUN apk add --no-cache bash gettext curl iputils busybox-extras iproute2 bind-tools
 
-# 复制package.json和package-lock.json
-COPY package*.json ./
+# 复制前端构建文件和配置
+COPY build/ /usr/share/nginx/html
 
-# 安装依赖
-RUN npm ci
-
-# 复制源代码
-COPY . .
-
-# 修改API地址为后端服务地址
-RUN sed -i 's|"proxy": "http://localhost:8000"|"proxy": "http://backend:8000"|g' package.json
-
-# 构建应用
-RUN npm run build
-
-# 部署阶段
-FROM nginx:alpine
-
-# 复制构建产物到Nginx目录
-COPY --from=build /app/build /usr/share/nginx/html
-
-# 复制Nginx配置
+# 保存nginx.conf到多个位置，确保入口脚本能找到
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 同时保存一份到/app目录作为备份
+RUN mkdir -p /app
+COPY nginx.conf /app/
 
-# 暴露端口
+# 复制入口脚本并设置执行权限
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+
+# 创建配置目录，确保所有必要的路径存在
+RUN mkdir -p /etc/nginx/sites-enabled
+
+# 将默认模板复制到其他可能的位置以兼容不同的Nginx配置
+RUN cp /etc/nginx/conf.d/default.conf /etc/nginx/sites-enabled/default || true
+
 EXPOSE 80
 
-# 启动Nginx
+# 使用入口脚本
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

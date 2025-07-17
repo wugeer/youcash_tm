@@ -1,7 +1,8 @@
 from typing import List, Optional, Dict, Any
-
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import Body
+from app.utils.youcash_ranger_v2 import run as ranger_run
 from app.utils.sync_helpers import with_sync_retry
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_active_user
@@ -16,46 +17,57 @@ import json
 from pydantic import ValidationError
 import subprocess
 import logging
+import argparse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ---------------- 预执行 CLI 命令的占位函数 -----------------
-
-def run_pre_save_command(payload: dict) -> None:
-    """在真正保存权限前调用 CLI（argparse）命令。
-
-    当前仅为占位实现，后续可将 `cmd` 修改为实际脚本及参数。
-    如果命令返回非 0，则抛出 HTTPException 400 阻止保存。
-    """
-    # 记录执行参数
-    logger.info(f"[行权限模块] 执行命令参数: {payload}")
-    
-    # TODO: 根据业务需要修改命令及参数
-    cmd = ["python", "example_cli.py", json.dumps(payload)]
+def run_ranger_command(payload: dict) -> None:
+    """执行Ranger命令的内部函数"""
+    # 首先定义 policy_name，确保它在 try-except 块之外也可见
+    policy_name = ""
     try:
-        logger.debug(f"[行权限模块] 准备执行命令: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        logger.info(f"[行权限模块] 命令执行结果: 返回码={result.returncode}, 输出={result.stdout.strip()}, 错误={result.stderr.strip()}")
-        
-        if result.returncode != 0:
-            logger.error(f"[行权限模块] 预执行命令失败: {result.stderr.strip() or '未知错误'}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"预执行命令失败: {result.stderr.strip() or '未知错误'}"
-            )
+        # 从payload中提取数据库和表名，生成一个唯一的策略名称
+        # 确保所有必需的键都存在
+        required_keys = ['db_name', 'table_name']
+        # 检查是否为批量同步的特殊操作
+        is_batch_sync_action = payload.get('action') == 'sync_all_row_permissions'
+
+        if not is_batch_sync_action:
+            if not all(key in payload and payload[key] is not None for key in required_keys):
+                raise ValueError("Payload for Ranger command must include 'db_name' and 'table_name'")
+            policy_name = f"row_filter_{payload['db_name']}_{payload['table_name']}_{payload.get('user_name', '')}_{payload.get('role_name', '')}".replace(' ', '_')
+
+        # 准备CLI参数
+        args = argparse.Namespace(
+            command=payload.get('action', 'grant'),
+            policy_type='row-filter',
+            service=['cm_hive', 'doris'],
+            catalog=['internal', 'cdp_hive'],
+            database=payload.get('db_name'),
+            table=payload.get('table_name'),
+            row_filter=payload.get('row_filter', ''),
+            users=[payload.get('user_name')] if payload.get('user_name') else [],
+            groups=[],
+            roles=[payload.get('role_name')] if payload.get('role_name') else [],
+            name=policy_name,  # 使用生成的策略名称
+            accesses=['select']
+        )
+        logger.debug(f"[行权限模块] 准备执行命令: {args}")
+        ranger_run(args)        
         logger.info(f"[行权限模块] 命令执行成功")
-    except FileNotFoundError:
-        # 未找到脚本时直接抛错，提醒后端开发者
-        logger.critical(f"[行权限模块] 脚本文件不存在: example_cli.py")
-        raise HTTPException(status_code=500, detail="预执行命令脚本不存在，请实现 run_pre_save_command")
+    except Exception as e:
+        error_msg = f"执行命令失败: {e}"
+        logger.critical(f"[行权限模块] {error_msg}")
+        # 确保错误信息能够传递到前端
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.post("/batch", response_model=List[RowPermissionOut])
 def batch_create_row_permissions(
     *,
     db: Session = Depends(get_db),
-    batch_data: RowPermissionBatchCreate,
+    batch_data: Any = Body(...),  # 使用Any类型和Body，以便接受多种格式
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user)
 ):
@@ -68,12 +80,36 @@ def batch_create_row_permissions(
     results = []
     errors = []
     permissions_to_sync = []
-    batch_sync = batch_data.batch_sync
+    
+    # 兼容两种输入格式：对象和数组
+    logger.info(f"[行权限模块] 接收到批量请求数据类型: {type(batch_data)}")
+    
+    # 检测输入格式
+    if isinstance(batch_data, list):
+        # 如果是数组格式，直接使用
+        items = batch_data
+        batch_sync = False
+        logger.info(f"[行权限模块] 检测到数组格式，包含{len(items)}条数据")
+    elif hasattr(batch_data, 'items') and hasattr(batch_data, 'batch_sync'):
+        # 如果是已经验证的RowPermissionBatchCreate对象
+        items = batch_data.items
+        batch_sync = batch_data.batch_sync
+        logger.info(f"[行权限模块] 检测到标准对象格式，包含{len(items)}条数据")
+    elif isinstance(batch_data, dict) and 'items' in batch_data:
+        # 如果是字典格式且包含items字段
+        items = batch_data.get('items', [])
+        batch_sync = batch_data.get('batch_sync', False)
+        logger.info(f"[行权限模块] 检测到字典对象格式，包含{len(items)}条数据")
+    else:
+        # 其他格式则报错
+        error_msg = f"[行权限模块] 不支持的输入格式: {type(batch_data)}"
+        logger.error(error_msg)
+        raise HTTPException(status_code=400, detail=error_msg)
     
     # 记录同步模式
     logger.info(f"[行权限模块] 批量创建行权限，同步模式: {'批量' if batch_sync else '逐条'}")
     
-    for i, permission_item in enumerate(batch_data.items):
+    for i, permission_item in enumerate(items):
         try:
             # 尝试创建并验证RowPermissionCreate对象
             try:
@@ -91,14 +127,18 @@ def batch_create_row_permissions(
             constraint_fields = {
                 "db_name": permission_data.db_name,
                 "table_name": permission_data.table_name,
+                "row_filter": permission_data.row_filter,
                 "user_name": permission_data.user_name,
                 "role_name": permission_data.role_name
             }
             
             if check_unique_constraint(db, RowPermission, constraint_fields):
+                # 格式化冲突详情用于错误消息
+                conflict_details = ", ".join([f"{k}='{v}'" for k, v in constraint_fields.items() if v is not None])
+                error_message = f"相同的行权限记录已存在: ({conflict_details})"
                 errors.append({
                     "index": i,
-                    "error": "相同的行权限记录已存在",
+                    "error": error_message,
                     "data": permission_dict
                 })
                 continue
@@ -107,21 +147,34 @@ def batch_create_row_permissions(
             row_permission = create_item(db, RowPermission, permission_data.model_dump())
             results.append(RowPermissionOut.model_validate(row_permission))
             
-            # 如果使用逐条同步模式，则为每条记录添加单独的同步任务
+            # 根据同步模式决定如何操作
             if not batch_sync:
-                logger.info(f"[行权限模块] 添加单独同步任务: 批量导入权限记录 ID={row_permission.id}")
-                background_tasks.add_task(
-                    sync_single_row_permission,
-                    row_permission.id,
-                    db=db
-                )
+                # 逐条同步模式：直接同步并捕获错误
+                try:
+                    sync_single_row_permission(
+                        row_permission.id,
+                        db=db,
+                        module_name="行权限模块",
+                        action="批量创建-逐条同步"
+                    )
+                except HTTPException as http_exc:
+                    # 如果同步失败，记录错误并删除已创建的记录
+                    errors.append({
+                        "index": i,
+                        "error": f"同步失败: {http_exc.detail}",
+                        "data": permission_dict
+                    })
+                    db.delete(row_permission)
+                    db.commit()
+                    # 从成功列表中移除
+                    results.pop()
             else:
                 # 批量同步模式下，收集ID以便后续一次性同步
                 permissions_to_sync.append(row_permission.id)
             
         except Exception as e:
             errors.append({
-                "index": i,
+                "index": index,
                 "error": str(e),
                 "data": permission_dict
             })
@@ -131,7 +184,7 @@ def batch_create_row_permissions(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": "批量创建行权限失败",
+                "message": f"批量创建行-权限失败，共 {len(errors)} 个错误",
                 "errors": errors
             }
         )
@@ -141,14 +194,32 @@ def batch_create_row_permissions(
         # 这里我们仍然返回成功创建的记录，但在响应头中添加警告信息
         return results
     
-    # 如果使用批量同步模式且有成功创建的记录，启动批量同步任务
+    # 如果使用批量同步模式且有成功创建的记录，直接调用批量同步函数
     if batch_sync and permissions_to_sync:
-        total_to_sync = len(permissions_to_sync)
-        logger.info(f"[行权限模块] 批量同步模式，添加批量同步任务，共{total_to_sync}条记录")
-        background_tasks.add_task(
-            sync_all_row_permissions,
-            db=db
-        )
+        try:
+            logger.info(f"[行权限模块] 批量同步模式，开始同步 {len(permissions_to_sync)} 条记录")
+            sync_all_row_permissions(db=db, permission_ids=permissions_to_sync)
+        except HTTPException as http_exc:
+            # 批量同步失败，将错误信息附加到errors列表，并回滚所有已创建的记录
+            logger.error(f"[行权限模块] 批量同步失败，将回滚 {len(results)} 条已创建的记录。")
+            errors.append({
+                "index": "all",
+                "error": f"批量同步失败: {http_exc.detail}",
+                "data": permissions_to_sync
+            })
+            created_ids = [r.id for r in results]
+            db.query(RowPermission).filter(RowPermission.id.in_(created_ids)).delete(synchronize_session=False)
+            db.commit()
+            # 清空成功结果
+            results = []
+            # 抛出包含所有错误的最终异常
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "message": f"批量操作因同步失败而终止: {http_exc.detail} (共 {len(errors)} 个错误)",
+                    "errors": errors
+                }
+            )
     
     return results
 
@@ -165,6 +236,7 @@ def create_row_permission(
     constraint_fields = {
         "db_name": row_permission_in.db_name,
         "table_name": row_permission_in.table_name,
+        "row_filter": row_permission_in.row_filter,
         "user_name": row_permission_in.user_name,
         "role_name": row_permission_in.role_name
     }
@@ -175,19 +247,23 @@ def create_row_permission(
             detail="相同的行权限记录已存在"
         )
     
-    # 预执行 CLI 命令
-    run_pre_save_command(row_permission_in.model_dump())
     # 创建行权限记录
     row_permission = create_item(db, RowPermission, row_permission_in.model_dump())
-    
-    # 添加同步任务到后台执行
-    logger.info(f"[行权限模块] 添加同步任务: 新建权限记录 ID={row_permission.id}")
-    background_tasks.add_task(
-        sync_single_row_permission,
-        row_permission.id,
-        db=db
-    )
-    
+
+    # 直接同步行权限，确保错误能立即反馈到前端
+    try:
+        sync_single_row_permission(
+            row_permission.id,
+            db=db,
+            module_name="行权限模块",
+            action="创建同步"
+        )
+    except HTTPException as http_exc:
+        # 如果同步失败，删除刚刚创建的记录，并抛出异常
+        db.delete(row_permission)
+        db.commit()
+        raise http_exc
+
     return RowPermissionOut.model_validate(row_permission)
 
 @router.get("/", response_model=PaginatedResponse)
@@ -200,6 +276,7 @@ def get_row_permissions(
     filters = {
         "db_name": params.db_name,
         "table_name": params.table_name,
+        "row_filter": params.row_filter,
         "user_name": params.user_name,
         "role_name": params.role_name
     }
@@ -267,11 +344,11 @@ def update_row_permission(
         )
     
     # 如果有任何字段有值，则检查唯一约束
-    update_data = row_permission_in.dict(exclude_unset=True)
+    update_data = row_permission_in.model_dump(exclude_unset=True)
     if any(update_data.values()):
         # 构建约束检查字段
         constraint_fields = {}
-        for field in ["db_name", "table_name", "user_name", "role_name"]:
+        for field in ["db_name", "table_name", "row_filter", "user_name", "role_name"]:
             if field in update_data and update_data[field] is not None:
                 constraint_fields[field] = update_data[field]
             else:
@@ -285,73 +362,65 @@ def update_row_permission(
     
     # 在更新前对原始数据执行删除同步
     try:
-        # 保存原始数据的关键信息
-        original_db_name = row_permission.db_name
-        original_table_name = row_permission.table_name
-        original_user_name = row_permission.user_name
-        original_role_name = row_permission.role_name
-        
         # 对原始数据执行删除同步
         logger.info(f"[行权限模块] 更新前对原始数据执行删除同步: ID={permission_id}")
         sync_delete_row_permission(
             permission_id=permission_id,
-            db_name=original_db_name,
-            table_name=original_table_name,
-            user_name=original_user_name,
-            role_name=original_role_name
+            db_name=row_permission.db_name,
+            table_name=row_permission.table_name,
+            row_filter=row_permission.row_filter,
+            user_name=row_permission.user_name,
+            role_name=row_permission.role_name
         )
     except Exception as e:
         # 如果删除同步失败，记录错误但不中断更新操作
         logger.error(f"[行权限模块] 更新前删除同步失败: {str(e)}")
     
-    # 预执行 CLI 命令
-    run_pre_save_command({**update_data, "id": permission_id})
     # 更新记录
     updated_row_permission = update_item(db, RowPermission, permission_id, update_data)
     
-    # 添加同步任务到后台执行
-    logger.info(f"[行权限模块] 添加同步任务: 更新权限记录 ID={permission_id}")
-    background_tasks.add_task(
-        sync_single_row_permission,
-        permission_id,
-        db=db
-    )
-    
+    # 直接同步行权限，确保错误能立即反馈到前端
+    try:
+        sync_single_row_permission(
+            permission_id,
+            db=db,
+            module_name="行权限模块",
+            action="更新同步"
+        )
+    except HTTPException as http_exc:
+        # 将同步失败的错误直接抛出，以便前端捕获
+        raise http_exc
+
     return updated_row_permission
 
-def sync_all_row_permissions(*, db: Session):
-    """同步所有行权限的内部函数，可以被后台任务调用
-    
-    参数:
-        db: 数据库会话（关键字参数）
+def sync_all_row_permissions(*, db: Session, permission_ids: List[int] = None):
+    """同步所有或指定的行权限
+
+    - 如果提供了 permission_ids，则只同步这些记录。
+    - 如果未提供，则同步数据库中所有的行权限记录。
+    - 在同步失败时，会抛出 HTTPException。
     """
-    # 查询所有行权限记录
-    all_row_permissions = db.query(RowPermission).all()
-    total_count = len(all_row_permissions)
-    
-    logger.info(f"[行权限模块] 开始同步所有行权限，共{total_count}条记录")
-    
+    if permission_ids:
+        permissions_to_sync = db.query(RowPermission).filter(RowPermission.id.in_(permission_ids)).all()
+        log_message = f"开始同步指定的 {len(permissions_to_sync)} 条行权限记录"
+    else:
+        permissions_to_sync = db.query(RowPermission).all()
+        log_message = f"开始同步所有行权限，共{len(permissions_to_sync)}条记录"
+
+    total_count = len(permissions_to_sync)
+    logger.info(f"[行权限模块] {log_message}")
+
     if total_count == 0:
         logger.warning("[行权限模块] 无行权限记录可同步")
-        return {"message": "sync ok", "total": 0, "synced": 0}
-    
-    # 先通知CLI脚本开始批量同步操作
-    batch_payload = {
-        "action": "sync_row_permissions",
-        "total": total_count
-    }
-    run_pre_save_command(batch_payload)
-    
-    # 记录成功和失败的同步操作
+        return
+
     success_count = 0
     failed_records = []
-    
-    # 依次同步每条记录
-    for index, perm in enumerate(all_row_permissions):
+
+    for index, perm in enumerate(permissions_to_sync):
         try:
-            # 准备同步参数
             payload = {
-                "action": "sync_single_row_permission",
+                "action": "grant",
                 "id": perm.id,
                 "db_name": perm.db_name,
                 "table_name": perm.table_name,
@@ -359,30 +428,38 @@ def sync_all_row_permissions(*, db: Session):
                 "user_name": perm.user_name,
                 "role_name": perm.role_name
             }
-            
-            # 记录同步请求
-            logger.info(f"[行权限模块] 同步记录 {index+1}/{total_count}: ID={perm.id}, 数据库=[{perm.db_name}], 表=[{perm.table_name}], 用户=[{perm.user_name}], 角色=[{perm.role_name}]")
-            
-            # 执行同步命令
-            run_pre_save_command(payload)
+            logger.info(f"[行权限模块] 同步记录 {index + 1}/{total_count}: ID={perm.id}")
+            # run_ranger_command(payload)
             success_count += 1
-            
         except Exception as e:
-            logger.error(f"[行权限模块] 同步记录 ID={perm.id} 失败: {str(e)}")
+            error_detail = getattr(e, 'detail', str(e))
+            logger.error(f"[行权限模块] 同步记录 ID={perm.id} 失败: {error_detail}")
             failed_records.append({
                 "id": perm.id,
                 "db_name": perm.db_name,
                 "table_name": perm.table_name,
-                "error": str(e)
+                "error": error_detail
             })
-    
-    # 返回同步结果摘要
+
+    if failed_records:
+        error_summary = {
+            "message": "批量同步操作完成，但部分记录失败。",
+            "total": total_count,
+            "succeeded": success_count,
+            "failed": len(failed_records),
+            "errors": failed_records
+        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_summary
+        )
+    logger.info(f"[行权限模块] 批量同步操作完成，成功 {success_count} 条，失败 {len(failed_records)} 条")
     return {
-        "message": "sync completed", 
-        "total": total_count, 
-        "synced": success_count,
-        "failed": len(failed_records),
-        "failed_records": failed_records[:10] if failed_records else []  # 最多显示10条失败记录
+        "message": "批量同步操作完成",
+        "total": total_count,
+        "succeeded": success_count,
+        "failed": 0,
+        "errors": []
     }
 
 @router.post("/sync", response_model=dict)
@@ -417,7 +494,7 @@ def sync_single_row_permission(
     
     # 准备同步参数，包含所有关键字段
     payload = {
-        "action": "sync_single_row_permission",
+        "action": "grant",
         "id": permission_id,
         "db_name": row_permission.db_name,
         "table_name": row_permission.table_name,
@@ -430,7 +507,7 @@ def sync_single_row_permission(
     logger.info(f"[行权限模块] 同步单条记录: ID={permission_id}, 数据库=[{row_permission.db_name}], 表=[{row_permission.table_name}], 用户=[{row_permission.user_name}], 角色=[{row_permission.role_name}]")
     
     # 执行同步命令
-    run_pre_save_command(payload)
+    run_ranger_command(payload)
     
     # 返回同步结果及关键字段信息
     return {
@@ -442,7 +519,7 @@ def sync_single_row_permission(
         "role_name": row_permission.role_name
     }
 
-def sync_delete_row_permission(*, permission_id: int, db_name: str, table_name: str, user_name: Optional[str] = None, role_name: Optional[str] = None):
+def sync_delete_row_permission(*, permission_id: int, db_name: str, table_name: str, row_filter: str, user_name: Optional[str] = None, role_name: Optional[str] = None):
     """同步删除行权限
     
     参数:
@@ -455,23 +532,20 @@ def sync_delete_row_permission(*, permission_id: int, db_name: str, table_name: 
     try:
         # 准备删除同步参数
         payload = {
-            "action": "sync_delete_row_permission",
+            "action": "revoke",
             "id": permission_id,
             "db_name": db_name,
-            "table_name": table_name
+            "table_name": table_name,
+            "row_filter": row_filter,
+            "user_name": user_name,
+            "role_name": role_name
         }
-        
-        # 添加可选参数
-        if user_name:
-            payload["user_name"] = user_name
-        if role_name:
-            payload["role_name"] = role_name
             
         # 记录同步请求
         logger.info(f"[行权限模块] 同步删除行权限: ID={permission_id}, 数据库=[{db_name}], 表=[{table_name}], 用户=[{user_name}], 角色=[{role_name}]")
         
         # 执行同步命令
-        run_pre_save_command(payload)
+        run_ranger_command(payload)
         return {"status": "success"}
         
     except Exception as e:
@@ -497,6 +571,7 @@ def delete_row_permission(
     # 保存必要的同步信息
     db_name = permission.db_name
     table_name = permission.table_name
+    row_filter = permission.row_filter
     user_name = permission.user_name
     role_name = permission.role_name
     
@@ -516,6 +591,7 @@ def delete_row_permission(
             permission_id=permission_id,
             db_name=db_name,
             table_name=table_name,
+            row_filter=row_filter,
             user_name=user_name,
             role_name=role_name
         )

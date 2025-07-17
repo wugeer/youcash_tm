@@ -157,22 +157,87 @@ const ColumnPermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       onSuccess();
     } catch (error) {
       console.error('批量导入失败:', error);
-      let errorMessage = '批量导入失败';
+      // 增强错误日志输出
+      console.log('错误状态:', error.status || error.response?.status);
+      console.log('错误响应:', error.response?.data);
+      
+      // 创建一个更友好的错误显示
+      let errorTitle = '批量导入失败';
+      let errorContent;
       
       if (error.response && error.response.data) {
-        if (error.response.data.detail) {
-          const detail = error.response.data.detail;
+        const errorData = error.response.data;
+        
+        // 检查各种可能的错误格式
+        if (errorData.detail) {
+          const detail = errorData.detail;
           if (typeof detail === 'string') {
-            errorMessage = detail;
+            // 简单字符串错误
+            errorContent = (
+              <div>
+                <p>{detail}</p>
+              </div>
+            );
           } else if (Array.isArray(detail) && detail.length > 0) {
-            errorMessage = detail.map((err, index) => 
-              `第 ${index + 1} 条记录: ${err.msg || JSON.stringify(err)}`
-            ).join('\n');
+            // 错误数组
+            errorContent = (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {detail.map((err, index) => (
+                  <div key={index} style={{ marginBottom: '8px' }}>
+                    <strong>第 {index + 1} 条记录:</strong> {err.msg || JSON.stringify(err)}
+                  </div>
+                ))}
+              </div>
+            );
+          } else if (typeof detail === 'object' && detail !== null) {
+            // 对象类型错误
+            errorContent = (
+              <div>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>
+                  {JSON.stringify(detail, null, 2)}
+                </pre>
+              </div>
+            );
           }
+        } else if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          // errors 数组形式的错误
+          errorContent = (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {errorData.errors.map((err, index) => {
+                const errText = typeof err === 'string' ? err : (err.error || err.msg || JSON.stringify(err));
+                return (
+                  <div key={index} style={{ marginBottom: '8px' }}>
+                    <strong>错误 {index + 1}:</strong> {errText}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        } else {
+          // 其他情况，显示整个错误对象
+          errorContent = (
+            <div>
+              <pre style={{ whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(errorData, null, 2)}
+              </pre>
+            </div>
+          );
         }
+      } else {
+        // 没有响应数据的情况
+        errorContent = (
+          <div>
+            <p>{error.message || '网络错误或服务器无响应'}</p>
+          </div>
+        );
       }
       
-      message.error(errorMessage);
+      // 使用Modal显示更详细的错误信息
+      Modal.error({
+        title: errorTitle,
+        content: errorContent,
+        width: 600
+      });
     } finally {
       setLoading(false);
     }

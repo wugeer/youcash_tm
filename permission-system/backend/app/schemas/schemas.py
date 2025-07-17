@@ -242,6 +242,7 @@ class ColumnPermissionFilter(BaseModel):
 class RowPermissionFilter(BaseModel):
     db_name: Optional[str] = None
     table_name: Optional[str] = None
+    row_filter: Optional[str] = None  # 添加缺失的row_filter属性
     user_name: Optional[str] = None
     role_name: Optional[str] = None
     page: int = 1

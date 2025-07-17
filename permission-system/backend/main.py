@@ -5,6 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.config import API_V1_STR, BACKEND_CORS_ORIGINS
+import logging
+import sys
+import os
+from app.utils.log_config import CompressedTimedRotatingFileHandler
 
 # 配置日志系统
 def setup_logging():
@@ -19,11 +23,19 @@ def setup_logging():
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.INFO)
     
-    # 创建文件处理器
-    import os
+    # 创建日志目录
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     os.makedirs(log_dir, exist_ok=True)
-    file_handler = logging.FileHandler(os.path.join(log_dir, 'permission_system.log'))
+    
+    # 创建压缩滚动文件处理器
+    log_file = os.path.join(log_dir, 'permission_system.log')
+    file_handler = CompressedTimedRotatingFileHandler(
+        log_file,
+        when='D',           # 每天滚动
+        interval=1,         # 每1天
+        backupCount=30,     # 保留30个备份
+        encoding='utf-8'
+    )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     

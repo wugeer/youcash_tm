@@ -124,7 +124,19 @@ def with_sync_retry(max_attempts: int = 3, retry_delay: int = 2):
                         # 如果是本地创建的数据库会话，关闭它
                         if local_db:
                             db.close()
-                        raise
+                        
+                        # 导入 HTTPException，确保可以正确抛出错误
+                        try:
+                            from fastapi import HTTPException
+                            # 如果原始异常已经是 HTTPException，直接抛出
+                            if isinstance(e, HTTPException):
+                                raise e
+                            # 否则，将异常包装为 HTTPException 以便前端显示
+                            error_msg = f"{module_name}{action}失败: {str(e)}"
+                            raise HTTPException(status_code=500, detail=error_msg) from e
+                        except ImportError:
+                            # 如果无法导入 HTTPException，则抛出原始异常
+                            raise e
             
             # 这里正常不会到达，但为了类型检查完整性
             raise last_error

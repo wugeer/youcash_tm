@@ -6,6 +6,7 @@ import json
 import argparse
 import logging
 import os
+from app.utils.log_config import CompressedTimedRotatingFileHandler
 
 # 配置日志
 # 创建日志目录
@@ -23,8 +24,15 @@ console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(formatter)
 console_handler.setLevel(logging.INFO)
 
-# 创建文件处理器
-file_handler = logging.FileHandler(os.path.join(log_dir, 'cli.log'))
+# 创建压缩滚动文件处理器
+log_file = os.path.join(log_dir, 'cli.log')
+file_handler = CompressedTimedRotatingFileHandler(
+    log_file,
+    when='D',           # 每天滚动
+    interval=1,         # 每1天
+    backupCount=30,     # 保留30个备份
+    encoding='utf-8'
+)
 file_handler.setFormatter(formatter)
 file_handler.setLevel(logging.DEBUG)
 
@@ -248,7 +256,7 @@ def main():
         sys.exit(1)
         
     except Exception as e:
-        error(f"操作执行失败: {str(e)}")
+        logger.error(f"操作执行失败: {str(e)}")
         logger.exception("发生异常")
         sys.exit(1)
 

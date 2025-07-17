@@ -127,8 +127,11 @@ const TablePermissionBatchImport = ({ visible, onCancel, onSuccess }) => {
       setParseError(null);
       setLoading(true);
 
-      // 调用批量创建API
-      await batchCreateTablePermissions(parseResult.data);
+      // 调用批量创建API - 使用正确的格式包装数据
+      await batchCreateTablePermissions({
+        items: parseResult.data,
+        batch_sync: false // 默认逐条同步
+      });
       message.success(`成功导入 ${parseResult.data.length} 条表权限记录`);
       form.resetFields();
       onSuccess();

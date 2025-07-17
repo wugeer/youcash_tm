@@ -1,62 +1,16 @@
 import axios from 'axios';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
+import React from 'react';
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: '/api/v1',
+  baseURL: window.APP_CONFIG?.API_URL || '/api/v1',
   timeout: 10000,
 });
 
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
-    // 记录原始请求数据
-    console.log('拦截器 - 请求URL:', config.url);
-    console.log('拦截器 - 原始数据:', config.data ? JSON.stringify(config.data) : 'no data');
-    
-    // 记录请求参数
-    if (config.params) {
-      console.log('拦截器 - 请求参数:', JSON.stringify(config.params));
-      if (config.params.sorters) {
-        console.log('拦截器 - 排序参数:', config.params.sorters);
-      }
-    }
-    
-    // 检查是否是登录请求
-    if (config.url && config.url.includes('/auth/login') && config.data) {
-      console.log('拦截器 - 检测到登录请求');
-      console.log('拦截器 - 登录密码:', config.data.password);
-      
-      if (typeof config.data === 'string') {
-        try {
-          const parsedData = JSON.parse(config.data);
-          console.log('拦截器 - 已解析字符串数据:', parsedData);
-          
-          // 测试: 确保密码不被修改(仅用于调试)
-          if (parsedData.password && parsedData.username === 'admin') {
-            const originalPassword = parsedData.password;
-            console.log('拦截器 - 原始密码:', originalPassword);
-            // 如果密码已被修改，还原为正确密码
-            if (originalPassword !== '1qaz@WSX') {
-              const fixedData = { ...parsedData, password: '1qaz@WSX' };
-              console.log('拦截器 - 修正后的数据:', fixedData);
-              config.data = JSON.stringify(fixedData);
-            }
-          }
-        } catch (e) {
-          console.error('数据解析错误:', e);
-        }
-      } else if (config.data && typeof config.data === 'object') {
-        console.log('拦截器 - 原始对象数据:', config.data);
-        
-        // 测试: 检查密码是否设置正确(仅用于调试)
-        if (config.data.password && config.data.username === 'admin') {
-          console.log('拦截器 - 发送前密码:', config.data.password);
-        }
-      }
-    }
-    
-    // 从localStorage获取token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -64,7 +18,7 @@ service.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('请求错误:', error);
+    console.error('Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -72,62 +26,122 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response) => {
+    // 对响应数据做点什么
     return response.data;
   },
   (error) => {
-    let errorMessage;
-
-    if (error.response) {
-      const { status, data } = error.response;
-      const detail = data ? data.detail : null;
-
-      // 1. 优先从后端返回的 detail 字段解析详细错误信息
-      if (detail) {
-        if (typeof detail === 'string') {
-          errorMessage = detail;
-        } else if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
-          // 处理Pydantic返回的错误对象数组，例如：[{loc: ..., msg: ..., type: ...}]
-          errorMessage = detail.map(err => err.msg).join('; ');
-        } else if (typeof detail === 'object' && detail !== null && detail.msg) {
-          // 处理Pydantic返回的单个错误对象
-          errorMessage = detail.msg;
-        }
+    console.error('API Error:', error.response || error);
+    // 添加更详细的错误日志，打印完整的错误结构
+    console.log('错误对象类型:', typeof error);
+    console.log('错误状态码:', error.response?.status);
+    console.log('响应头信息:', error.response?.headers);
+    
+    if (error.response && error.response.data) {
+      console.log('完整错误数据结构:', JSON.stringify(error.response.data, null, 2));
+      // 添加Docker环境检测
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.log('检测到Docker/远程环境，错误响应可能需要特殊处理');
       }
-
-      // 2. 如果没有解析出详细错误，则根据HTTP状态码设置通用错误信息
-      if (!errorMessage) {
-        switch (status) {
-          case 401:
-            errorMessage = '登录已过期，请重新登录';
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-            break;
-          case 403:
-            errorMessage = '没有权限访问该资源';
-            break;
-          case 404:
-            errorMessage = '请求的资源不存在';
-            break;
-          case 400:
-            errorMessage = '请求参数错误';
-            break;
-          case 422:
-            errorMessage = '请求数据校验失败';
-            break;
-          case 500:
-            errorMessage = '服务器内部错误';
-            break;
-          default:
-            errorMessage = `请求失败，状态码: ${status}`;
-        }
-      }
-    } else if (error.request) {
-      errorMessage = '无法连接到服务器，请检查网络';
-    } else {
-      errorMessage = '请求发生错误，请检查网络或联系管理员';
     }
 
-    message.error(errorMessage);
+    if (error.response && error.response.data) {
+      const errorData = error.response.data;
+      let titleMessage = errorData.message || '操作失败';
+      let errorContent = null;
+      
+      // Docker环境特殊处理
+      const isDockerOrRemoteEnv = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+      console.log(`当前环境: ${isDockerOrRemoteEnv ? 'Docker/远程' : '本地'}, hostname: ${window.location.hostname}`);
+      
+      // 综合处理出错情况，按优先级检查各种可能的错误结构
+      
+      // 0. 通用错误提取函数
+      const extractErrorText = (e) => {
+        if (typeof e === 'string') return e;
+        if (e && typeof e === 'object') {
+          return e.error || e.msg || e.detail || e.message || JSON.stringify(e);
+        }
+        return JSON.stringify(e);
+      };
+      
+      // 1. 先检查是否存在 response.data.errors 或 failed_records 数组
+      if ((Array.isArray(errorData.errors) && errorData.errors.length > 0) ||
+          (Array.isArray(errorData.failed_records) && errorData.failed_records.length > 0)) {
+        const errors = errorData.errors || errorData.failed_records;
+        const errorElements = errors.map((e, index) => {
+          let errorText = extractErrorText(e);
+          return React.createElement('div', { key: index }, `${index + 1}. ${errorText}`);
+        });
+        
+        errorContent = React.createElement('div', { style: { maxHeight: '400px', overflowY: 'auto' } }, errorElements);
+      }
+      // 2. 检查 response.data.detail 是否为对象并包含 errors 数组
+      else if (errorData.detail && typeof errorData.detail === 'object' && errorData.detail !== null) {
+        // 检查是否有 detail.errors 数组
+        if (Array.isArray(errorData.detail.errors) && errorData.detail.errors.length > 0) {
+          titleMessage = errorData.detail.message || titleMessage;
+          const errorElements = errorData.detail.errors.map((e, index) => {
+            let errorText = extractErrorText(e);
+            return React.createElement('div', { key: index }, `${index + 1}. ${errorText}`);
+          });
+          errorContent = React.createElement('div', { style: { maxHeight: '400px', overflowY: 'auto' } }, errorElements);
+        } else {
+          // 如果没有 errors 数组，显示 detail.message 或整个 detail 对象
+          const contentMessage = errorData.detail.message || JSON.stringify(errorData.detail);
+          errorContent = React.createElement('div', {}, contentMessage);
+        }
+      }
+      // 3. 如果 response.data.detail 是字符串
+      else if (typeof errorData.detail === 'string') {
+        errorContent = React.createElement('div', {}, errorData.detail);
+      }
+      // 4. Docker环境下，尝试额外的错误格式
+      else if (isDockerOrRemoteEnv && errorData) {
+        // 尝试从响应中提取错误信息
+        if (typeof errorData === 'string') {
+          errorContent = React.createElement('div', {}, errorData);
+        } else {
+          // 尝试分析JSON并查找可能的错误字段
+          const possibleErrorFields = ['error', 'message', 'msg', 'detail'];
+          for (const field of possibleErrorFields) {
+            if (errorData[field]) {
+              const fieldValue = errorData[field];
+              if (typeof fieldValue === 'string') {
+                errorContent = React.createElement('div', {}, fieldValue);
+                break;
+              } else if (typeof fieldValue === 'object') {
+                errorContent = React.createElement('pre', { 
+                  style: { whiteSpace: 'pre-wrap', maxHeight: '400px', overflowY: 'auto' } 
+                }, JSON.stringify(fieldValue, null, 2));
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // 5. 如果所有分支都没有匹配，显示整个错误对象
+      if (!errorContent) {
+        const responseStr = typeof errorData === 'string' ? errorData : JSON.stringify(errorData, null, 2);
+        errorContent = React.createElement('pre', { 
+          style: { whiteSpace: 'pre-wrap', maxHeight: '400px', overflowY: 'auto' } 
+        }, responseStr);
+      }
+      
+      // 显示错误对话框
+      Modal.error({
+        title: titleMessage,
+        content: errorContent,
+        width: 600,
+      });
+      
+      return Promise.reject(error);
+
+    } else {
+      // 处理网络错误或其他未知错误
+      message.error(error.message || '网络错误，请检查您的连接');
+    }
+
     return Promise.reject(error);
   }
 );
