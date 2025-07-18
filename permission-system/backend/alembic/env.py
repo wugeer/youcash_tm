@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 导入配置和模型
 from app.core.config import SQLALCHEMY_DATABASE_URI
 from app.models.models import Base
+from app.models.ldap_user import LdapUser  # 导入LdapUser模型
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

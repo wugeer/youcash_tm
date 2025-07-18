@@ -18,25 +18,39 @@ const RowPermissionList = () => {
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
 
+  // 缓存上次请求参数，用于去重
+  const lastRequestRef = React.useRef('');
+  
   // 获取行权限列表
   const fetchRowPermissions = useCallback(async () => {
+    // 构建当前请求参数
+    const params = {
+      ...filters,
+      page: current,
+      page_size: pageSize
+    };
+    
+    // 添加排序参数 - 只处理单个排序字段
+    if (sorters && sorters.length > 0) {
+      const sorter = sorters[0]; // 只有一个排序字段
+      params.sort_field = sorter.field;
+      params.sort_order = sorter.order;
+    }
+    
+    // 生成参数字符串用于比较
+    const paramsString = JSON.stringify(params);
+    
+    // 如果上次请求参数相同，则不重复请求
+    if (paramsString === lastRequestRef.current) {
+      console.log('请求参数相同，跳过重复请求');
+      return;
+    }
+    
+    // 更新上次请求参数
+    lastRequestRef.current = paramsString;
+    
     try {
       setLoading(true);
-      const params = {
-        ...filters,
-        page: current,
-        page_size: pageSize
-      };
-      
-      // 添加排序参数 - 只处理单个排序字段
-      if (sorters && sorters.length > 0) {
-        console.log('添加排序参数到请求中');
-        const sorter = sorters[0]; // 只有一个排序字段
-        params.sort_field = sorter.field;
-        params.sort_order = sorter.order;
-        console.log('完整请求参数:', params);
-      }
-      
       const data = await getRowPermissions(params);
       setPermissions(data.items);
       setTotal(data.total);

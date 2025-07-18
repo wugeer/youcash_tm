@@ -1,9 +1,10 @@
 import argparse
 import subprocess
 import os
-from youcash_ranger_v2 import run as ranger_run
-from ldap3_script import run as ldap_run
+from .youcash_ranger_v2 import run as ranger_run
+from .ldap3_script import run as ldap_run
 from pyhive import hive
+from app.core.config import DATABASE_URL
 
 
 # 从环境变量中获取LDAP配置
@@ -34,7 +35,23 @@ class YoucashUtils:
         if not user_name:
             raise Exception('查询用户信息时请传入用户名')
         import psycopg2
-        with psycopg2.connect(database=, user=,password=,host=,port=) as conn:
+        from urllib.parse import urlparse
+        
+        # 解析数据库URL
+        result = urlparse(DATABASE_URL)
+        username = result.username
+        password = result.password
+        database = result.path[1:]  # 去掉开头的'/'
+        hostname = result.hostname
+        port = result.port
+        
+        with psycopg2.connect(
+            database=database,
+            user=username,
+            password=password,
+            host=hostname,
+            port=port
+        ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(f"""select first_name, last_name, email from public.ab_user where username='{user_name}' limit 1""")
                 for record in cursor:

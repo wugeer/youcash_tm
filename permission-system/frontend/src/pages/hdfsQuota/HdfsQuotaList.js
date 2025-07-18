@@ -29,20 +29,37 @@ const HdfsQuotaList = () => {
   // 同步中状态
   const [syncLoading, setSyncLoading] = useState(false);
 
+  // 缓存上次请求参数，用于去重
+  const lastRequestRef = React.useRef('');
+
   // 获取HDFS配额列表
   const fetchHdfsQuotas = useCallback(async () => {
+    // 构建当前请求参数
+    const params = {
+      ...filters,
+      page: current,
+      page_size: pageSize,
+    };
+    if (sorters.length > 0) {
+      const firstSorter = sorters[0];
+      params.sort_field = firstSorter.field;
+      params.sort_order = firstSorter.order;
+    }
+    
+    // 生成参数字符串用于比较
+    const paramsString = JSON.stringify(params);
+    
+    // 如果上次请求参数相同，则不重复请求
+    if (paramsString === lastRequestRef.current) {
+      console.log('请求参数相同，跳过重复请求');
+      return;
+    }
+    
+    // 更新上次请求参数
+    lastRequestRef.current = paramsString;
+    
     try {
       setLoading(true);
-      const params = {
-        ...filters,
-        page: current,
-        page_size: pageSize,
-      };
-      if (sorters.length > 0) {
-        const firstSorter = sorters[0];
-        params.sort_field = firstSorter.field;
-        params.sort_order = firstSorter.order;
-      }
       const data = await getHdfsQuotas(params);
       setQuotas(data.items);
       setTotal(data.total);

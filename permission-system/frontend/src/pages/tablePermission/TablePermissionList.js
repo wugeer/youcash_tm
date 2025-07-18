@@ -18,21 +18,38 @@ const TablePermissionList = () => {
   const [editingPermission, setEditingPermission] = useState(null);
   const [form] = Form.useForm();
 
+  // 缓存上次请求参数，用于去重
+  const lastRequestRef = React.useRef('');
+
   // 获取表权限列表
   const fetchTablePermissions = useCallback(async () => {
+    // 构建当前请求参数
+    const params = {
+      ...filters,
+      page: current,
+      page_size: pageSize,
+    };
+    if (sorters.length > 0) {
+      // 使用单独的参数传递排序字段和排序方向，避免复杂的JSON序列化
+      const firstSorter = sorters[0]; // 暂时只处理第一个排序
+      params.sort_field = firstSorter.field;
+      params.sort_order = firstSorter.order;
+    }
+    
+    // 生成参数字符串用于比较
+    const paramsString = JSON.stringify(params);
+    
+    // 如果上次请求参数相同，则不重复请求
+    if (paramsString === lastRequestRef.current) {
+      console.log('请求参数相同，跳过重复请求');
+      return;
+    }
+    
+    // 更新上次请求参数
+    lastRequestRef.current = paramsString;
+
     try {
       setLoading(true);
-      const params = {
-        ...filters,
-        page: current,
-        page_size: pageSize,
-      };
-      if (sorters.length > 0) {
-        // 使用单独的参数传递排序字段和排序方向，避免复杂的JSON序列化
-        const firstSorter = sorters[0]; // 暂时只处理第一个排序
-        params.sort_field = firstSorter.field;
-        params.sort_order = firstSorter.order;
-      }
       const data = await getTablePermissions(params);
       setPermissions(data.items);
       setTotal(data.total);

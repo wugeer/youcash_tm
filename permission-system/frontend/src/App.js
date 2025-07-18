@@ -8,6 +8,9 @@ import TablePermissionList from './pages/tablePermission/TablePermissionList';
 import ColumnPermissionList from './pages/columnPermission/ColumnPermissionList';
 import RowPermissionList from './pages/rowPermission/RowPermissionList';
 import HdfsQuotaList from './pages/hdfsQuota/HdfsQuotaList';
+import LdapUserList from './pages/ldapUser';
+import RolePage from './pages/role';
+import DepartmentPage from './pages/department';
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }) => {
@@ -70,6 +73,33 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <HdfsQuotaList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/ldap-users" 
+            element={
+              <ProtectedRoute>
+                <LdapUserList />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/roles" 
+            element={
+              <ProtectedRoute>
+                <RolePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/departments" 
+            element={
+              <ProtectedRoute>
+                <DepartmentPage />
               </ProtectedRoute>
             } 
           />

@@ -5,7 +5,15 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #FFEFD5;
+}
+
+/* 自定义下拉菜单样式 */
+.custom-dropdown-menu .ant-select-item {
+  background-color: #e6f7ff !important;
+}
+
+.custom-dropdown-menu .ant-select-item-selected {
+  background-color: #bae7ff !important;
 }
 
 code {

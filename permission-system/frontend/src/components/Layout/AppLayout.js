@@ -8,7 +8,10 @@ import {
   ColumnHeightOutlined,
   FilterOutlined,
   LogoutOutlined,
-  HddOutlined
+  HddOutlined,
+  TeamOutlined,
+  IdcardOutlined,
+  BranchesOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -42,6 +45,21 @@ const AppLayout = ({ children }) => {
       key: '/hdfs-quotas',
       icon: <HddOutlined />,
       label: 'HDFS配额管理',
+    },
+    {
+      key: '/ldap-users',
+      icon: <TeamOutlined />,
+      label: 'LDAP用户管理',
+    },
+    {
+      key: '/roles',
+      icon: <IdcardOutlined />,
+      label: '角色管理',
+    },
+    {
+      key: '/departments',
+      icon: <BranchesOutlined />,
+      label: '部门管理',
     },
   ];
 

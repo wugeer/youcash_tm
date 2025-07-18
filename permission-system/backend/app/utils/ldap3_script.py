@@ -4,7 +4,7 @@ import argparse
 from ldap3 import Server, Connection, ALL, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, ALL_ATTRIBUTES
 from ldap3.core.exceptions import LDAPException
 # from youcash_hash import youcash_hash
-from youcash_ranger_v2 import run as delete_strategy
+from .youcash_ranger_v2 import run as delete_strategy
 
 # 从环境变量中获取LDAP配置
 import os
